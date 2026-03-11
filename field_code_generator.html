@@ -1,0 +1,1792 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数仓字段命名工具</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f0f2f5; color: #333; font-size: 13px; }
+
+  .header { background: #1a1a2e; color: #fff; padding: 12px 20px; display: flex; align-items: center; gap: 12px; }
+  .header h1 { font-size: 16px; font-weight: 600; }
+  .header span { font-size: 12px; opacity: 0.6; }
+
+  .layout { display: grid; grid-template-columns: 320px 1fr; gap: 12px; padding: 12px; height: calc(100vh - 48px); }
+
+  /* 左侧词根管理 */
+  .panel { background: #fff; border-radius: 8px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .panel-header { padding: 12px 14px; background: #fafafa; border-bottom: 1px solid #eee; display: flex; align-items: center; justify-content: space-between; }
+  .panel-title { font-weight: 600; font-size: 13px; color: #333; }
+  .panel-body { flex: 1; overflow-y: auto; overflow-x: auto; padding: 10px; }
+  .panel-body::-webkit-scrollbar:horizontal { height: 4px; }
+  .panel-body::-webkit-scrollbar-thumb:horizontal { background: #ddd; border-radius: 2px; }
+
+  /* 右侧 */
+  .right-col { display: grid; grid-template-rows: auto 1fr; gap: 12px; }
+
+  /* 搜索框 */
+  .search-box { background: #fff; border-radius: 8px; padding: 14px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+  .search-row { display: flex; gap: 8px; align-items: center; }
+  .search-row input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; transition: border-color .2s; }
+  .search-row input:focus { border-color: #4e6ef2; }
+  .btn { padding: 7px 14px; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500; transition: all .2s; }
+  .btn-primary { background: #4e6ef2; color: #fff; }
+  .btn-primary:hover { background: #3d5de0; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; }
+  .btn-ghost { background: transparent; border: 1px solid #ddd; color: #666; }
+  .btn-ghost:hover { border-color: #4e6ef2; color: #4e6ef2; }
+  .btn-danger { background: transparent; border: 1px solid #ff4d4f; color: #ff4d4f; }
+  .btn-danger:hover { background: #ff4d4f; color: #fff; }
+
+  /* 命名组合器 */
+  .composer { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); display: flex; flex-direction: column; overflow: hidden; }
+  .composer-header { padding: 12px 14px; border-bottom: 1px solid #eee; background: #fafafa; display: flex; align-items: center; justify-content: space-between; }
+  .composer-body { flex: 1; overflow-y: auto; padding: 14px; }
+
+  /* 命名结构区 */
+  .naming-structure-wrap { overflow-x: auto; margin-bottom: 14px; padding-bottom: 4px; }
+  .naming-structure-wrap::-webkit-scrollbar { height: 4px; }
+  .naming-structure-wrap::-webkit-scrollbar-thumb { background: #ddd; border-radius: 2px; }
+  .naming-structure { display: flex; align-items: center; gap: 6px; min-width: max-content; }
+  .slot { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .slot-label { font-size: 10px; color: #999; font-weight: 500; }
+  .slot-box { min-width: 90px; min-height: 36px; border: 2px dashed #ddd; border-radius: 6px; display: flex; align-items: center; justify-content: center; padding: 4px 8px; cursor: pointer; transition: all .2s; font-size: 12px; color: #bbb; text-align: center; }
+  .slot-box.filled { border-style: solid; border-color: #4e6ef2; color: #4e6ef2; font-weight: 600; background: #f0f4ff; }
+  .slot-box.optional { border-color: #ccc; }
+  .slot-box.optional.filled { border-color: #52c41a; color: #52c41a; background: #f6ffed; }
+  .slot-box:hover { border-color: #4e6ef2; }
+  .slot-sep { font-size: 18px; color: #ccc; margin-top: 16px; }
+
+  /* 结果预览 */
+  .result-area { background: #f8f9ff; border: 1px solid #e0e7ff; border-radius: 8px; padding: 12px 14px; margin-bottom: 14px; }
+  .result-code { font-family: 'Monaco', 'Menlo', monospace; font-size: 16px; font-weight: 700; color: #4e6ef2; letter-spacing: 0.5px; }
+  .result-meta { font-size: 11px; color: #999; margin-top: 4px; }
+
+  /* 词根选择面板 */
+  .word-selector { border: 1px solid #eee; border-radius: 8px; padding: 10px; margin-bottom: 10px; }
+  .ws-title { font-size: 11px; font-weight: 600; color: #666; margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+  .ws-filter { padding: 4px 8px; border: 1px solid #eee; border-radius: 4px; font-size: 11px; flex: 1; outline: none; }
+  .ws-tags { display: flex; flex-wrap: wrap; gap: 5px; max-height: 100px; overflow-y: auto; }
+  .tag { display: inline-flex; align-items: center; gap: 3px; padding: 3px 8px; border-radius: 4px; cursor: pointer; font-size: 12px; border: 1px solid transparent; transition: all .15s; white-space: nowrap; }
+  .tag:hover { transform: translateY(-1px); box-shadow: 0 2px 6px rgba(0,0,0,0.1); }
+  .tag.selected { font-weight: 600; }
+  .tag-entity { background: #e6f4ff; color: #0958d9; border-color: #91caff; }
+  .tag-entity.selected { background: #0958d9; color: #fff; border-color: #0958d9; }
+  .tag-process { background: #f9f0ff; color: #531dab; border-color: #d3adf7; }
+  .tag-process.selected { background: #531dab; color: #fff; border-color: #531dab; }
+  .tag-agg { background: #fff0f6; color: #c41d7f; border-color: #ffadd2; }
+  .tag-agg.selected { background: #c41d7f; color: #fff; border-color: #c41d7f; }
+  .tag-date { background: #f6ffed; color: #389e0d; border-color: #b7eb8f; }
+  .tag-date.selected { background: #52c41a; color: #fff; border-color: #52c41a; }
+  .tag-metric { background: #fffbe6; color: #d46b08; border-color: #ffe58f; }
+  .tag-metric.selected { background: #fa8c16; color: #fff; border-color: #fa8c16; }
+  .tag-base { background: #e6fffb; color: #006d75; border-color: #87e8de; }
+  .tag-base.selected { background: #006d75; color: #fff; border-color: #006d75; }
+  .tag-gran { background: #fff7e6; color: #874d00; border-color: #ffd591; }
+  .tag-gran.selected { background: #873800; color: #fff; border-color: #873800; }
+
+  /* 历史记录 */
+  .history-list { display: flex; flex-direction: column; gap: 4px; }
+  .history-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; background: #fafafa; border: 1px solid #f0f0f0; }
+  .history-code { font-family: monospace; font-size: 12px; color: #4e6ef2; font-weight: 600; flex: 1; }
+  .history-name { font-size: 11px; color: #999; }
+
+  /* 词根管理列表 */
+  .cat-section { margin-bottom: 10px; }
+  .cat-title { font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 4px; margin-bottom: 6px; display: flex; align-items: center; justify-content: space-between; }
+  .cat-entity .cat-title  { background: #e6f4ff; color: #0958d9; }
+  .cat-process .cat-title { background: #f9f0ff; color: #531dab; }
+  .cat-agg .cat-title     { background: #fff0f6; color: #c41d7f; }
+  .cat-date .cat-title    { background: #f6ffed; color: #389e0d; }
+  .cat-metric .cat-title  { background: #fffbe6; color: #d46b08; }
+  .cat-base .cat-title    { background: #e6fffb; color: #006d75; }
+  .cat-gran .cat-title    { background: #fff7e6; color: #874d00; }
+
+  .word-item { display: flex; align-items: center; gap: 6px; padding: 4px 6px; border-radius: 4px; margin-bottom: 3px; white-space: nowrap; }
+  .word-item:hover { background: #f5f5f5; }
+  .word-code { font-family: monospace; font-size: 12px; font-weight: 600; min-width: 80px; }
+  .word-name { flex: 1; font-size: 12px; color: #666; }
+  .word-desc { font-size: 11px; color: #aaa; }
+  .word-actions { display: none; gap: 4px; }
+  .word-item:hover .word-actions { display: flex; }
+
+  /* 添加词根表单 */
+  .add-form { background: #f8f9ff; border: 1px solid #e0e7ff; border-radius: 8px; padding: 12px; margin-top: 8px; }
+  .form-row { display: flex; gap: 6px; margin-bottom: 6px; }
+  .form-row input, .form-row select { flex: 1; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; outline: none; }
+  .form-row input:focus, .form-row select:focus { border-color: #4e6ef2; }
+
+  /* 批量模式 */
+  .batch-area { margin-top: 10px; }
+  .batch-input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 12px; resize: vertical; min-height: 80px; outline: none; font-family: inherit; }
+  .batch-result-list { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+  .batch-item { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; background: #f8f9ff; border: 1px solid #e0e7ff; }
+  .batch-arrow { color: #ccc; }
+  .batch-code { font-family: monospace; font-size: 13px; color: #4e6ef2; font-weight: 700; }
+
+  /* 提示和徽章 */
+  .badge { display: inline-flex; align-items: center; padding: 1px 6px; border-radius: 3px; font-size: 10px; font-weight: 600; }
+  .badge-opt { background: #fff7e6; color: #d46b08; border: 1px solid #ffd591; }
+  .badge-req { background: #fff1f0; color: #cf1322; border: 1px solid #ffa39e; }
+
+  .tip { font-size: 11px; color: #999; background: #fafafa; border-radius: 6px; padding: 6px 10px; border-left: 3px solid #d9d9d9; margin-bottom: 10px; }
+
+  .divider { height: 1px; background: #f0f0f0; margin: 10px 0; }
+
+  .tabs { display: flex; gap: 0; border-bottom: 1px solid #eee; }
+  .tab { padding: 8px 14px; font-size: 12px; cursor: pointer; border-bottom: 2px solid transparent; color: #666; transition: all .2s; }
+  .tab.active { border-bottom-color: #4e6ef2; color: #4e6ef2; font-weight: 600; }
+
+  .copy-btn { padding: 3px 8px; font-size: 11px; border: 1px solid #4e6ef2; color: #4e6ef2; background: transparent; border-radius: 4px; cursor: pointer; }
+  .copy-btn:hover { background: #4e6ef2; color: #fff; }
+
+  .empty { text-align: center; color: #ccc; font-size: 12px; padding: 20px; }
+
+  .search-suggest { background: #fff; border: 1px solid #e0e7ff; border-radius: 6px; margin-top: 8px; display: none; }
+  .suggest-item { padding: 7px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid #f5f5f5; }
+  .suggest-item:last-child { border-bottom: none; }
+  .suggest-item:hover { background: #f0f4ff; }
+  .suggest-code { font-family: monospace; font-size: 12px; font-weight: 700; color: #4e6ef2; }
+  .suggest-name { font-size: 11px; color: #999; }
+  .suggest-cat { font-size: 10px; padding: 1px 5px; border-radius: 3px; }
+
+  .clear-slot { font-size: 10px; cursor: pointer; color: #ff4d4f; margin-left: 2px; }
+
+  .flex-end { display: flex; justify-content: flex-end; gap: 6px; }
+  .mt8 { margin-top: 8px; }
+  .actions-bar { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding-top: 12px; border-top: 1px solid #f0f0f0; }
+
+  /* GitHub 同步状态栏 */
+  .sync-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; font-size: 11px; border-bottom: 1px solid #f0f0f0; background: #fafafa; }
+  .sync-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .sync-dot.ok     { background: #52c41a; }
+  .sync-dot.warn   { background: #faad14; }
+  .sync-dot.err    { background: #ff4d4f; }
+  .sync-dot.loading { background: #4e6ef2; animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+  .sync-text { flex: 1; color: #666; }
+  .sync-btn  { padding: 3px 10px; font-size: 11px; border: 1px solid #d9d9d9; border-radius: 4px; background: #fff; cursor: pointer; color: #333; }
+  .sync-btn:hover { border-color: #4e6ef2; color: #4e6ef2; }
+  .sync-btn.primary { background: #4e6ef2; border-color: #4e6ef2; color: #fff; }
+  .sync-btn.primary:hover { background: #3d5de0; }
+
+  /* GitHub 配置弹窗 */
+  .modal-mask { position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; display: flex; align-items: center; justify-content: center; }
+  .modal-box  { background: #fff; border-radius: 10px; padding: 24px; width: 440px; box-shadow: 0 8px 32px rgba(0,0,0,.18); }
+  .modal-title { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .modal-sub   { font-size: 12px; color: #999; margin-bottom: 16px; }
+  .modal-field { margin-bottom: 12px; }
+  .modal-field label { display: block; font-size: 12px; color: #555; margin-bottom: 4px; font-weight: 500; }
+  .modal-field input { width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; font-family: monospace; }
+  .modal-field input:focus { border-color: #4e6ef2; }
+  .modal-field .hint { font-size: 11px; color: #aaa; margin-top: 3px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>数仓字段命名工具</h1>
+  <span>词根管理 · 命名生成 · 规范约束</span>
+  <span style="flex:1"></span>
+  <button class="sync-btn" onclick="openConfigModal()" style="font-size:12px;">⚙ GitHub 配置</button>
+</div>
+
+<div class="layout">
+  <!-- 左侧：词根管理 -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">词根库管理</span>
+      <button class="btn btn-primary btn-sm" onclick="showAddForm()">+ 新增词根</button>
+      <button class="btn btn-ghost btn-sm" onclick="resetWords()" title="重置为基于 ads_rpt_trd_spu_base_df 分析的默认词根">重置默认</button>
+    </div>
+    <!-- GitHub 同步状态栏 -->
+    <div class="sync-bar" id="syncBar">
+      <div class="sync-dot warn" id="syncDot"></div>
+      <span class="sync-text" id="syncText">未配置 GitHub，词根仅本地保存</span>
+      <button class="sync-btn" id="syncPullBtn" onclick="syncPull()" style="display:none">拉取</button>
+      <button class="sync-btn primary" id="syncPushBtn" onclick="syncPush()" style="display:none">推送更新</button>
+    </div>
+    <div style="padding:8px 10px 0;border-bottom:1px solid #f0f0f0;">
+      <input id="wordSearch" placeholder="搜索词根 code / 中文名..." oninput="renderWordList()"
+        style="width:100%;padding:6px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;outline:none;"
+        onfocus="this.style.borderColor='#4e6ef2'" onblur="this.style.borderColor='#ddd'" />
+    </div>
+    <div class="panel-body">
+      <!-- 新增表单 -->
+      <div class="add-form" id="addForm" style="display:none;">
+        <div class="form-row">
+          <input id="f-code" placeholder="词根code（英文）" />
+          <input id="f-name" placeholder="中文名称" />
+        </div>
+        <div class="form-row">
+          <select id="f-cat">
+            <option value="entity">实体词根</option>
+            <option value="process">业务过程词根</option>
+            <option value="base">基础指标词根</option>
+            <option value="metric">度量词根</option>
+            <option value="gran">聚合粒度</option>
+            <option value="agg">聚合修饰词</option>
+            <option value="date">日期修饰词</option>
+          </select>
+          <input id="f-desc" placeholder="说明（可选）" />
+        </div>
+        <div class="flex-end">
+          <button class="btn btn-ghost btn-sm" onclick="hideAddForm()">取消</button>
+          <button class="btn btn-primary btn-sm" onclick="addWord()">确认添加</button>
+        </div>
+      </div>
+
+      <!-- 词根列表 -->
+      <div id="wordList"></div>
+    </div>
+  </div>
+
+  <!-- 右侧 -->
+  <div class="right-col">
+    <!-- 搜索与命名生成 -->
+    <div class="search-box">
+      <div style="font-weight:600;font-size:13px;margin-bottom:10px;">中文名称 → 字段 Code 生成</div>
+      <div class="search-row">
+        <input id="searchInput" placeholder="输入中文名称，如：近7日交易成交额均值" oninput="onSearchInput()" onkeydown="onSearchKey(event)" />
+        <button id="btnGenerate" class="btn btn-primary" onclick="generateFromSearch()">生成</button>
+      </div>
+      <div class="search-suggest" id="searchSuggest"></div>
+
+      <div class="divider"></div>
+
+      <!-- 批量模式 -->
+      <div>
+        <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:6px;">批量生成（每行一个中文名称）</div>
+        <textarea class="batch-input" id="batchInput" placeholder="近7日交易成交额&#10;当日结算成交额均值&#10;买家数量"></textarea>
+        <div class="flex-end mt8">
+          <button class="btn btn-ghost btn-sm" onclick="clearBatch()">清空</button>
+          <button class="btn btn-ghost btn-sm" onclick="exportBatch()">导出CSV</button>
+          <button class="btn btn-primary btn-sm" onclick="batchGenerate()">批量生成</button>
+        </div>
+        <div class="batch-result-list" id="batchResults"></div>
+      </div>
+    </div>
+
+    <!-- 命名组合器 -->
+    <div class="composer">
+      <div class="composer-header">
+        <div>
+          <span class="panel-title">命名组合器</span>
+          <span style="font-size:11px;color:#999;margin-left:8px;">点击词根槽位选择/切换，构建字段 code</span>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-ghost btn-sm" onclick="clearComposer()">清空</button>
+          <button class="btn btn-primary btn-sm" onclick="saveToHistory()">保存记录</button>
+        </div>
+      </div>
+      <div class="composer-body">
+
+        <!-- 结果预览 -->
+        <div class="result-area" id="resultArea">
+          <div style="font-size:11px;color:#999;margin-bottom:4px;">生成结果</div>
+          <div class="result-code" id="resultCode">—</div>
+          <div class="result-meta" id="resultMeta">请选择词根组合</div>
+        </div>
+
+        <!-- 命名结构 -->
+        <div class="tip">
+          命名规范：<span style="color:#999">每个部分均可选，顺序固定</span><br>
+          <strong style="color:#0958d9">[业务修饰词]</strong> _ <strong style="color:#006d75">[基础指标词根]</strong> _ <strong style="color:#874d00">[聚合粒度]</strong> _ <strong style="color:#c41d7f">[聚合修饰词]</strong> _ <strong style="color:#389e0d">[日期修饰词]</strong><br>
+          <span style="color:#aaa;font-size:10px;">· 基础指标 = 单个业务修饰词 + 基础指标词根，如 <code>trade_amt</code> &nbsp;· 派生指标 = 多个修饰词 + 基础指标词根，如 <code>platform_buyer_new_trade_amt</code></span>
+        </div>
+
+        <div class="naming-structure-wrap">
+          <div class="naming-structure">
+            <div class="slot">
+              <div class="slot-label">业务修饰词 <span class="badge badge-opt">可选</span> <span style="font-size:10px;color:#aaa;font-weight:400">可多选</span></div>
+              <div class="slot-box optional" id="slot-biz" onclick="openSelector('biz')" style="flex-wrap:wrap;gap:3px;min-height:36px;height:auto;align-items:flex-start;padding:5px 8px;">
+                <span id="slot-biz-text" style="color:#bbb;font-size:12px;">点击选择</span>
+              </div>
+            </div>
+            <div class="slot-sep">_</div>
+            <div class="slot">
+              <div class="slot-label">基础指标词根 <span class="badge badge-opt">可选</span></div>
+              <div class="slot-box optional" id="slot-metric" onclick="openSelector('metric')">
+                <span id="slot-metric-text">点击选择</span>
+              </div>
+            </div>
+            <div class="slot-sep">_</div>
+            <div class="slot">
+              <div class="slot-label">聚合粒度 <span class="badge badge-opt">可选</span></div>
+              <div class="slot-box optional" id="slot-gran" onclick="openSelector('gran')">
+                <span id="slot-gran-text">点击选择</span>
+              </div>
+            </div>
+            <div class="slot-sep">_</div>
+            <div class="slot">
+              <div class="slot-label">聚合修饰词 <span class="badge badge-opt">可选</span></div>
+              <div class="slot-box optional" id="slot-agg" onclick="openSelector('agg')">
+                <span id="slot-agg-text">点击选择</span>
+              </div>
+            </div>
+            <div class="slot-sep">_</div>
+            <div class="slot">
+              <div class="slot-label">日期修饰词 <span class="badge badge-opt">可选</span></div>
+              <div class="slot-box optional" id="slot-date" onclick="openSelector('date')">
+                <span id="slot-date-text">点击选择</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 词根选择面板 -->
+        <div id="selectorPanel" style="display:none;">
+          <div class="divider"></div>
+          <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:8px;" id="selectorTitle">选择词根</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;align-items:center;">
+            <input class="ws-filter" id="selectorFilter" placeholder="搜索词根..." oninput="filterSelector()" style="flex:1;"/>
+            <button class="btn btn-ghost btn-sm" onclick="closeSelector()">关闭</button>
+            <button class="btn btn-danger btn-sm" onclick="clearCurrentSlot()">清除此槽</button>
+          </div>
+          <div class="ws-tags" id="selectorTags"></div>
+        </div>
+
+        <!-- 历史记录 -->
+        <div class="divider"></div>
+        <div style="font-size:12px;font-weight:600;color:#666;margin-bottom:8px;display:flex;align-items:center;justify-content:space-between;">
+          <span>历史记录</span>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-ghost btn-sm" onclick="exportHistory()">导出CSV</button>
+            <button class="btn btn-danger btn-sm" onclick="clearHistory()">清空</button>
+          </div>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// 初始词根数据
+// ============================================================
+// 词根数据来源：基于 du_shucang.ads_rpt_trd_spu_base_df 表 985 个字段分析（2026-03-09）
+// 同一词根有多个含义时，取出现次数最多的类型作为主类型
+const DEFAULT_WORDS = [
+  // ── 实体词根（entity）：描述涉及的是什么对象 ─────────────
+  { id:   1, code: 'spu',      name: 'SPU',       cat: 'entity', desc: '标准产品单元' },
+  { id:   2, code: 'merc',     name: '商家',       cat: 'entity', desc: 'Merchant缩写' },
+  { id:   3, code: 'subord',   name: '子订单',     cat: 'entity', desc: '子订单或附属订单' },
+  { id:   6, code: 'buyer',    name: '买家',       cat: 'entity', desc: '购买方用户' },
+  { id:   7, code: 'category', name: '类目',       cat: 'entity', desc: '商品分类' },
+  { id:  10, code: 'brand',    name: '品牌',       cat: 'entity', desc: '商品品牌' },
+  { id:  13, code: 'personal', name: '个人',       cat: 'entity', desc: '个人维度' },
+  { id:  18, code: 'lv3',      name: '三级',       cat: 'entity', desc: '层级3，如 category_lv3' },
+  { id:  20, code: 'sku',      name: 'SKU',        cat: 'entity', desc: '库存量单位' },
+  { id:  21, code: 'prd',      name: '产品',       cat: 'entity', desc: 'Product缩写' },
+  { id:  25, code: 'du',       name: '得物',       cat: 'entity', desc: '得物平台简写' },
+  { id:  28, code: 'series',   name: '系列',       cat: 'entity', desc: '商品系列' },
+  { id:  29, code: 'ord',      name: '订单',       cat: 'entity', desc: 'Order缩写' },
+  { id:  31, code: 'fspu',     name: '父SPU',      cat: 'entity', desc: '父级SPU' },
+  { id:  33, code: 'coupon',   name: '优惠券',     cat: 'entity', desc: '优惠券实体' },
+  { id:  35, code: 'activity', name: '活动',       cat: 'entity', desc: '营销活动实体' },
+  { id:  41, code: 'warehouse',name: '仓库',       cat: 'entity', desc: '仓库相关' },
+  { id:  55, code: 'male',     name: '男性',       cat: 'entity', desc: '男性用户' },
+  { id:  56, code: 'female',   name: '女性',       cat: 'entity', desc: '女性用户' },
+  { id:  57, code: 'gender',   name: '性别',       cat: 'entity', desc: '用户性别维度' },
+  { id:  62, code: 'platform', name: '平台',       cat: 'entity', desc: '平台维度' },
+  { id:  63, code: 'channel',  name: '渠道',       cat: 'entity', desc: '渠道维度' },
+  { id:  64, code: 'lv1',      name: '一级',       cat: 'entity', desc: '层级1，如 category_lv1' },
+  { id:  65, code: 'lv2',      name: '二级',       cat: 'entity', desc: '层级2' },
+  { id:  66, code: 'ka',       name: '大客户(KA)', cat: 'entity', desc: 'Key Account' },
+  { id:  71, code: 'merchant', name: '商家(全称)', cat: 'entity', desc: '商户/供应商' },
+  { id:  78, code: 'nps',      name: 'NPS',        cat: 'entity', desc: '净推荐值' },
+  { id:  82, code: 'group',    name: '组',          cat: 'entity', desc: '商品组' },
+  { id:  83, code: 'prt',      name: '合伙人',     cat: 'entity', desc: 'Partner缩写' },
+  { id:  87, code: 'pdp',      name: '商详/商品详情页', cat: 'entity', desc: 'Product Detail Page，商品详情页' },
+
+  // ── 业务过程词根（process）：描述发生了什么动作/状态 ─────
+  { id:   4, code: 'operate',  name: '运营',       cat: 'process', desc: '运营动作' },
+  { id:   5, code: 'bid',      name: '出价/竞价',  cat: 'process', desc: '广告出价或竞价行为' },
+  { id:   8, code: 'new',      name: '新',          cat: 'process', desc: '新增/新品状态' },
+  { id:   9, code: 'trade',    name: '交易',        cat: 'process', desc: '交易行为' },
+  { id:  11, code: 'online',   name: '上架/线上',  cat: 'process', desc: '上架或线上渠道状态' },
+  { id:  12, code: 'subsidy',  name: '补贴',        cat: 'process', desc: '补贴行为' },
+  { id:  14, code: 'net',      name: '净/净值',     cat: 'process', desc: '扣除后净额修饰' },
+  { id:  15, code: 'out',      name: '流出/外部',  cat: 'process', desc: '出仓或外部渠道' },
+  { id:  16, code: 'exp',      name: '曝光',        cat: 'process', desc: '曝光/展示行为' },
+  { id:  17, code: 'prosper',  name: '繁荣/活跃',  cat: 'process', desc: '活跃度或繁荣状态' },
+  { id:  19, code: 'high',     name: '高端',        cat: 'process', desc: '高端/高价区间限定' },
+  { id:  22, code: 'sale',     name: '销售',        cat: 'process', desc: '销售行为' },
+  { id:  23, code: 'sell',     name: '出售',        cat: 'process', desc: '出售行为' },
+  { id:  24, code: 'reject',   name: '拒绝/驳回',  cat: 'process', desc: '审核拒绝动作' },
+  { id:  26, code: 'consign',  name: '寄卖/直发',  cat: 'process', desc: '寄卖或闪电直发模式' },
+  { id:  27, code: 'period',   name: '周期',        cat: 'process', desc: '周期性限定' },
+  { id:  30, code: 'trd',      name: '交易(缩写)', cat: 'process', desc: 'Trade缩写' },
+  { id:  32, code: 'discount', name: '折扣',        cat: 'process', desc: '折扣行为' },
+  { id:  34, code: 'promotion',name: '促销',        cat: 'process', desc: '促销行为' },
+  { id:  36, code: 'old',      name: '老/旧',       cat: 'process', desc: '老用户/旧版本限定' },
+  { id:  37, code: 'offline',  name: '下架/线下',  cat: 'process', desc: '下架或线下渠道状态' },
+  { id:  38, code: 'spot',     name: '现货',        cat: 'process', desc: '现货模式' },
+  { id:  39, code: 'deposit',  name: '存仓',        cat: 'process', desc: '存仓行为' },
+  { id:  40, code: 'lightning',name: '闪电',        cat: 'process', desc: '闪电直发业务' },
+  { id:  42, code: 'deliver',  name: '发货',        cat: 'process', desc: '发货行为' },
+  { id:  43, code: 'freight',  name: '运费',        cat: 'process', desc: '运费相关' },
+  { id:  44, code: 'presale',  name: '预售',        cat: 'process', desc: '预售行为' },
+  { id:  45, code: 'second',   name: '二手',        cat: 'process', desc: '二手商品状态' },
+  { id:  46, code: 'auth',     name: '授权/官方',  cat: 'process', desc: '官方授权认证' },
+  { id:  47, code: 'audit',    name: '审核',        cat: 'process', desc: '审核动作' },
+  { id:  48, code: 'approve',  name: '审批通过',   cat: 'process', desc: '审批通过动作' },
+  { id:  49, code: 'valid',    name: '有效',        cat: 'process', desc: '有效状态限定' },
+  { id:  50, code: 'invalid',  name: '无效',        cat: 'process', desc: '无效状态限定' },
+  { id:  51, code: 'quality',  name: '品质',        cat: 'process', desc: '品质状态限定' },
+  { id:  52, code: 'qc',       name: '质检(QC)',   cat: 'process', desc: '质检动作' },
+  { id:  53, code: 'risk',     name: '风控',        cat: 'process', desc: '风控动作' },
+  { id:  54, code: 'recommend',name: '推荐',        cat: 'process', desc: '推荐行为' },
+  { id:  58, code: 'first',    name: '首次',        cat: 'process', desc: '首次行为限定' },
+  { id:  59, code: 'competitiveness', name: '竞争力', cat: 'process', desc: '竞争力状态' },
+  { id:  60, code: 'homogeneous',     name: '同质化', cat: 'process', desc: '同质化状态' },
+  { id:  61, code: 'supply',   name: '供应',        cat: 'process', desc: '供应链行为' },
+  { id:  67, code: 'mkt',      name: '市场/营销',  cat: 'process', desc: 'Marketing缩写' },
+  { id:  68, code: 'is',       name: '是否(前缀)', cat: 'process', desc: '布尔判断前缀，如 is_new' },
+  { id:  69, code: 'base',     name: '基础',        cat: 'process', desc: '基础数据限定' },
+  { id:  70, code: 'main',     name: '主',           cat: 'process', desc: '主图/主类型限定' },
+  { id:  72, code: 'lost',     name: '流失',        cat: 'process', desc: '流失行为' },
+  { id:  73, code: 'increase', name: '增量',        cat: 'process', desc: '增量行为' },
+  { id:  74, code: 'premium',  name: '溢价',        cat: 'process', desc: '溢价状态' },
+  { id:  75, code: 'refund',   name: '退款',        cat: 'process', desc: '退款行为' },
+  { id:  76, code: 'exchange', name: '换货',        cat: 'process', desc: '换货行为' },
+  { id:  77, code: 'settle',   name: '结算',        cat: 'process', desc: '结算行为' },
+  { id:  79, code: 'adequate', name: '充足',        cat: 'process', desc: '充足状态限定' },
+  { id:  80, code: 'cross',    name: '跨境',        cat: 'process', desc: '跨境业务' },
+  { id:  81, code: 'inbound',  name: '入仓',        cat: 'process', desc: '入库行为' },
+  { id:  84, code: 'max',      name: '最高/最大',  cat: 'process', desc: '最高/最大限定，如最高出价' },
+  { id:  85, code: 'min',      name: '最低/最小',  cat: 'process', desc: '最低/最小限定，如最低出价' },
+  { id:  86, code: 'pay',      name: '支付',        cat: 'process', desc: '支付行为，如支付金额、支付笔数' },
+
+  // ── 聚合修饰词（agg）：只描述聚合方式 sum/avg/max/min ────
+  { id: 104, code: 'avg',    name: '平均值',    cat: 'agg', desc: '对指标求平均' },
+  { id: 105, code: 'min',    name: '最小值',    cat: 'agg', desc: '对指标求最小值' },
+  { id: 108, code: 'sum',    name: '求和',      cat: 'agg', desc: '对指标求总和' },
+  { id: 110, code: 'max',    name: '最大值',    cat: 'agg', desc: '对指标求最大值' },
+
+  // ── 度量词根补充（原聚合修饰词中描述"衡量什么"的部分）───
+  { id: 101, code: 'cnt',    name: '数量/计数', cat: 'base',   desc: '某类对象的个数' },
+  { id: 102, code: 'score',  name: '评分',      cat: 'metric', desc: '综合评分' },
+  { id: 103, code: 'weight', name: '权重',      cat: 'metric', desc: '加权值或权重' },
+  { id: 106, code: 'rate',   name: '比率',      cat: 'metric', desc: '百分比或转化率' },
+  { id: 107, code: 'degree', name: '程度/指数', cat: 'metric', desc: '抽象程度量化' },
+  { id: 109, code: 'diff',   name: '差值',      cat: 'metric', desc: '两值之差' },
+  { id: 111, code: 'total',  name: '合计',      cat: 'metric', desc: '汇总总量' },
+  { id: 112, code: 'rank',   name: '排名',      cat: 'metric', desc: '排序名次' },
+  { id: 113, code: 'index',  name: '指数',      cat: 'metric', desc: '综合指数类指标' },
+  { id: 114, code: 'top',    name: 'Top排名',   cat: 'metric', desc: '排名前N' },
+  { id: 115, code: 'ratio',  name: '占比',      cat: 'base',   desc: '占比，如 new_buyer_ratio' },
+  { id: 116, code: 'pct',    name: '百分比',    cat: 'base',   desc: '百分比' },
+
+  // ── 日期修饰词（date）────────────────────────────────────
+  { id: 201, code: 'td',       name: '自然日(当日)',  cat: 'date', desc: '统计当日截止的指标' },
+  { id: 206, code: '1d',       name: '近1天',         cat: 'date', desc: '近1日累计' },
+  { id: 229, code: '2d',       name: '近2天',         cat: 'date', desc: '近2日累计' },
+  { id: 230, code: '3d',       name: '近3天',         cat: 'date', desc: '近3日累计' },
+  { id: 231, code: '5d',       name: '近5天',         cat: 'date', desc: '近5日累计' },
+  { id: 202, code: '7d',       name: '近7天',         cat: 'date', desc: '近7日累计' },
+  { id: 232, code: '10d',      name: '近10天',        cat: 'date', desc: '近10日累计' },
+  { id: 213, code: '14d',      name: '近14天',        cat: 'date', desc: '近14日累计' },
+  { id: 217, code: '15d',      name: '近15天',        cat: 'date', desc: '近15日累计' },
+  { id: 233, code: '20d',      name: '近20天',        cat: 'date', desc: '近20日累计' },
+  { id: 203, code: '30d',      name: '近30天',        cat: 'date', desc: '近30日累计' },
+  { id: 234, code: '45d',      name: '近45天',        cat: 'date', desc: '近45日累计' },
+  { id: 219, code: '60d',      name: '近60天',        cat: 'date', desc: '近60日累计' },
+  { id: 215, code: '90d',      name: '近90天',        cat: 'date', desc: '近90日累计' },
+  { id: 235, code: '120d',     name: '近120天',       cat: 'date', desc: '近120日累计' },
+  { id: 236, code: '180d',     name: '近180天',       cat: 'date', desc: '近180日累计' },
+  { id: 205, code: '300',      name: '近300天',       cat: 'date', desc: '近300日' },
+  { id: 237, code: '365d',     name: '近365天',       cat: 'date', desc: '近365日累计' },
+  { id: 216, code: 'wtd',      name: '周累计(WTD)',   cat: 'date', desc: 'Week To Date' },
+  { id: 204, code: 'mtd',      name: '月累计(MTD)',   cat: 'date', desc: 'Month To Date' },
+  { id: 218, code: 'qtd',      name: '季累计(QTD)',   cat: 'date', desc: 'Quarter To Date' },
+  { id: 227, code: 'ytd',      name: '年累计(YTD)',   cat: 'date', desc: 'Year To Date，本年截至今日' },
+  { id: 207, code: 'std',      name: '历史累计',      cat: 'date', desc: 'Since To Date 全量累计' },
+  { id: 214, code: 'eod',      name: '日终(EOD)',     cat: 'date', desc: 'End Of Day，当日结束时快照' },
+  { id: 210, code: '1m',       name: '近1个月',       cat: 'date', desc: '近1个自然月' },
+  { id: 212, code: 'l1m',      name: '上1个月',       cat: 'date', desc: 'Last 1 Month，上月同期' },
+  { id: 208, code: '1q',       name: '近1季度',       cat: 'date', desc: '近1个自然季度' },
+  { id: 220, code: 'lwtd',     name: '上周同期',      cat: 'date', desc: 'Last Week To Date' },
+  { id: 228, code: 'lmtd',     name: '上月同期',      cat: 'date', desc: 'Last Month To Date' },
+  { id: 221, code: 'lqtd',     name: '上季同期',      cat: 'date', desc: 'Last Quarter To Date' },
+  { id: 222, code: 'yoy',      name: '同比',          cat: 'date', desc: 'Year Over Year，与去年同期对比' },
+  { id: 223, code: 'mom',      name: '环比',          cat: 'date', desc: 'Month Over Month，与上月对比' },
+  { id: 211, code: 'days',     name: '天数',          cat: 'date', desc: '多天数字段' },
+  { id: 224, code: 'date',     name: '日期',          cat: 'date', desc: '日期字段后缀，如 audit_date' },
+  { id: 225, code: 'day',      name: '天',            cat: 'date', desc: '天数，如 deliver_day' },
+  { id: 226, code: 'hour',     name: '小时',          cat: 'date', desc: '小时粒度' },
+  { id: 209, code: 'datetime', name: '日期时间',      cat: 'date', desc: '精确到时分秒的时间戳字段' },
+
+  // ── 度量词根（metric）：描述衡量的是什么 ─────────────────
+  { id: 301, code: 'gmv',        name: 'GMV',          cat: 'base',   desc: '成交总额' },
+  { id: 302, code: 'flag',       name: '标识/标记',    cat: 'metric', desc: '布尔型标识字段0/1' },
+  { id: 303, code: 'price',      name: '价格',         cat: 'base',   desc: '商品或服务单价' },
+  { id: 304, code: 'name',       name: '名称',         cat: 'metric', desc: '名称类字段' },
+  { id: 305, code: 'inv',        name: '库存/存货',    cat: 'metric', desc: 'Inventory' },
+  { id: 306, code: 'uv',         name: '独立访客数',   cat: 'base',   desc: 'Unique Visitor' },
+  { id: 307, code: 'id',         name: '唯一标识',     cat: 'metric', desc: '主键或外键ID' },
+  { id: 308, code: 'size',       name: '尺码/大小',    cat: 'metric', desc: '尺码或规格' },
+  { id: 309, code: 'amt',        name: '金额',         cat: 'base',   desc: '货币金额类指标' },
+  { id: 310, code: 'pv',         name: '页面浏览量',   cat: 'base',   desc: 'Page View' },
+  { id: 311, code: 'stock',      name: '库存',         cat: 'metric', desc: '库存相关指标' },
+  { id: 312, code: 'img',        name: '图片',         cat: 'metric', desc: '图片相关，如 main_img_cnt' },
+  { id: 313, code: 'list',       name: '列表',         cat: 'metric', desc: '列表类字段，如 white_list' },
+  { id: 314, code: 'collect',    name: '收藏数',       cat: 'metric', desc: '收藏/关注次数' },
+  { id: 315, code: 'type',       name: '类型',         cat: 'metric', desc: '枚举类型字段' },
+  { id: 316, code: 'fee',        name: '费用',         cat: 'metric', desc: '各类费用金额' },
+  { id: 317, code: 'click',      name: '点击数',       cat: 'metric', desc: '点击次数' },
+  { id: 318, code: 'image',      name: '图片(全称)',   cat: 'metric', desc: '图片相关' },
+  { id: 319, code: 'level',      name: '等级',         cat: 'metric', desc: '层级或等级' },
+  { id: 320, code: 'limit',      name: '限制量',       cat: 'metric', desc: '上限/限制数值' },
+  { id: 321, code: 'pay',        name: '支付',         cat: 'metric', desc: '支付相关指标' },
+  { id: 322, code: 'remain',     name: '剩余量',       cat: 'metric', desc: '剩余数量' },
+  { id: 323, code: 'url',        name: 'URL链接',      cat: 'metric', desc: '链接地址' },
+  { id: 324, code: 'access',     name: '访问量',       cat: 'metric', desc: '访问次数' },
+  { id: 325, code: 'qty',        name: '库存数量',     cat: 'metric', desc: '库存件数，如 inv_qty' },
+  { id: 326, code: 'reason',     name: '原因',         cat: 'metric', desc: '原因描述，如 reject_reason' },
+  { id: 327, code: 'detail',     name: '详情',         cat: 'metric', desc: '详细信息' },
+  { id: 328, code: 'json',       name: 'JSON结构',     cat: 'metric', desc: 'JSON格式数据字段' },
+  { id: 329, code: 'search',     name: '搜索量',       cat: 'metric', desc: '搜索次数' },
+  { id: 330, code: 'properties', name: '属性集合',     cat: 'metric', desc: '属性JSON' },
+  { id: 331, code: 'comment',    name: '备注',         cat: 'metric', desc: '注释或说明字段' },
+  { id: 332, code: 'video',      name: '视频',         cat: 'metric', desc: '视频相关' },
+  { id: 333, code: 'status',     name: '状态',         cat: 'metric', desc: '状态字段' },
+  { id: 334, code: 'property',   name: '属性',         cat: 'metric', desc: '单个属性' },
+  { id: 335, code: 'result',     name: '结果',         cat: 'metric', desc: '处理结果' },
+  { id: 336, code: 'title',      name: '标题',         cat: 'metric', desc: '标题类字段' },
+  { id: 337, code: 'report',     name: '报告',         cat: 'metric', desc: '报告类字段' },
+  { id: 338, code: 'code',       name: '编码',         cat: 'metric', desc: '编码或代码' },
+  { id: 339, code: 'label',      name: '标签(描述)',   cat: 'metric', desc: '标签或分类描述' },
+  { id: 340, code: 'ids',        name: '标识集合',     cat: 'metric', desc: '多个ID的集合' },
+  { id: 341, code: 'cr',         name: '转化率(CR)',   cat: 'metric', desc: 'Conversion Rate' },
+  { id: 342, code: 'quantity',   name: '数量(全称)',   cat: 'metric', desc: '件数/数量' },
+  { id: 343, code: 'no',         name: '编号',         cat: 'metric', desc: '编号类字段' },
+  { id: 344, code: 'duration',   name: '时长',         cat: 'metric', desc: '时间时长' },
+  { id: 345, code: 'tag',        name: '标签',         cat: 'metric', desc: '标签类字段' },
+  { id: 346, code: 'content',    name: '内容',         cat: 'metric', desc: '文本内容' },
+  { id: 347, code: 'style',      name: '风格',         cat: 'metric', desc: '样式或风格' },
+  { id: 348, code: 'capacity',   name: '容量',         cat: 'metric', desc: '容量数值' },
+  { id: 349, code: 'value',      name: '值',           cat: 'metric', desc: '数值或内容值' },
+  { id: 350, code: 'num',        name: '数量',         cat: 'metric', desc: '通用数量，如 sku_num' },
+  { id: 352, code: 'info',       name: '信息',         cat: 'metric', desc: '综合信息字段' },
+
+  // ── 补充实体词根（entity）────────────────────────────────────
+  { id: 353, code: 'store',      name: '店铺/门店',    cat: 'entity', desc: '线上或线下店铺' },
+  { id: 354, code: 'supplier',   name: '供应商',       cat: 'entity', desc: '商品供应商实体' },
+  { id: 355, code: 'item',       name: '单品/商品项',  cat: 'entity', desc: '单个商品条目，如 platform_item' },
+  { id: 356, code: 'attr',       name: '属性',         cat: 'entity', desc: '商品或业务属性维度' },
+  { id: 357, code: 'source',     name: '来源',         cat: 'entity', desc: '数据或流量来源' },
+  { id: 358, code: 'sub',        name: '子级/子类目',  cat: 'entity', desc: '子分类或子层级，如 sub_category' },
+  { id: 359, code: 'co',         name: '联名/合作',    cat: 'entity', desc: '联名品牌或合作方，如 co_brand' },
+
+  // ── 补充业务过程词根（process）───────────────────────────────
+  { id: 360, code: 'flash',      name: '闪购',         cat: 'process', desc: '限时闪购/闪电直发行为' },
+  { id: 361, code: 'virtual',    name: '虚拟',         cat: 'process', desc: '虚拟商品或虚拟行为标识' },
+  { id: 362, code: 'cart',       name: '加购/购物车',  cat: 'process', desc: '加入购物车行为' },
+  { id: 363, code: 'create',     name: '创建',         cat: 'process', desc: '数据创建/新增行为时间' },
+  { id: 364, code: 'update',     name: '更新',         cat: 'process', desc: '数据更新/修改行为时间' },
+
+  // ── 补充度量词根（metric）────────────────────────────────────
+  { id: 365, code: 'ctr',        name: '点击率(CTR)',  cat: 'metric', desc: 'Click-Through Rate，如 search_ctr' },
+  { id: 366, code: 'exposure',   name: '曝光量',       cat: 'metric', desc: '展示/曝光次数，如 search_exposure' },
+  { id: 367, code: 'favorite',   name: '收藏量',       cat: 'metric', desc: 'SPU/商品被收藏次数' },
+  { id: 368, code: 'range',      name: '区间/范围',    cat: 'metric', desc: '价格区间等范围类字段，如 price_range' },
+  { id: 369, code: 'time',       name: '时间戳',       cat: 'metric', desc: '时间类字段，如 create_time、update_time' },
+];
+
+const CAT_CONFIG = {
+  entity:  { label: '实体词根',     tagCls: 'tag-entity',  color: '#0958d9' },
+  process: { label: '业务过程词根', tagCls: 'tag-process', color: '#531dab' },
+  base:    { label: '基础指标词根', tagCls: 'tag-base',    color: '#006d75' },
+  metric:  { label: '度量词根',     tagCls: 'tag-metric',  color: '#d46b08' },
+  gran:    { label: '聚合粒度',     tagCls: 'tag-gran',    color: '#874d00' },
+  agg:     { label: '聚合修饰词',   tagCls: 'tag-agg',     color: '#c41d7f' },
+  date:    { label: '日期修饰词',   tagCls: 'tag-date',    color: '#389e0d' },
+};
+
+// biz 槽位同时接受 entity 和 process 两类词根；metric 槽位同时接受 base 和 metric
+const SLOT_TO_CATS = {
+  biz:    ['entity', 'process'],
+  metric: ['base', 'metric'],
+  gran:   ['gran'],
+  agg:    ['agg'],
+  date:   ['date'],
+};
+
+// ============================================================
+// 状态
+// ============================================================
+let words = [];
+let autoKeywords = {}; // 从词根中文名自动推导出的关键词映射，KEYWORD_MAP 优先级更高
+let slots = { biz: [], metric: null, gran: null, agg: null, date: null };  // biz 支持多选
+let history = [];
+let currentSelectorCat = null;
+let nextId = 500;
+
+// ============================================================
+// 初始化
+// ============================================================
+function init() {
+  loadConfig();
+
+  // 先从 localStorage 加载（离线可用）
+  const saved = localStorage.getItem('dw_words');
+  if (saved) {
+    words = JSON.parse(saved);
+    // 同步内置词根的 cat / name 变更
+    let changed = false;
+    DEFAULT_WORDS.forEach(dw => {
+      const existing = words.find(w => w.id === dw.id);
+      if (!existing) {
+        words.push(JSON.parse(JSON.stringify(dw)));
+        changed = true;
+      } else {
+        if (existing.cat  !== dw.cat)  { existing.cat  = dw.cat;  changed = true; }
+        if (existing.name !== dw.name) { existing.name = dw.name; changed = true; }
+      }
+    });
+    if (changed) saveWords();
+  } else {
+    words = JSON.parse(JSON.stringify(DEFAULT_WORDS));
+    saveWords();
+  }
+  nextId = words.reduce((m, w) => Math.max(m, w.id), 499) + 1;
+  buildAutoKeywords();
+  const savedHistory = localStorage.getItem('dw_history');
+  history = savedHistory ? JSON.parse(savedHistory) : [];
+  renderWordList();
+  renderHistory();
+  updateResult();
+
+  // 有 GitHub 配置则自动拉取最新词根库
+  if (ghConfig) {
+    setSyncState('loading', '正在从 GitHub 同步词根库...');
+    syncPull();
+  } else {
+    setSyncState('warn', '未配置 GitHub，词根仅本地保存');
+  }
+}
+
+function saveWords() {
+  localStorage.setItem('dw_words', JSON.stringify(words));
+  // 有 GitHub 配置时标记本地有改动（不自动推送，避免频繁请求）
+  if (ghConfig) {
+    localDirty = true;
+    setSyncState('warn', '有未推送的改动，点击「推送更新」同步到团队');
+  }
+}
+
+function saveHistoryStore() {
+  localStorage.setItem('dw_history', JSON.stringify(history));
+}
+
+// ============================================================
+// 词根管理
+// ============================================================
+function renderWordList() {
+  const container = document.getElementById('wordList');
+  const q = (document.getElementById('wordSearch')?.value || '').toLowerCase().trim();
+  const cats = ['entity', 'process', 'base', 'metric', 'gran', 'agg', 'date'];
+  container.innerHTML = cats.map(cat => {
+    let catWords = words.filter(w => w.cat === cat);
+    if (q) catWords = catWords.filter(w =>
+      w.code.includes(q) || w.name.includes(q) || (w.desc && w.desc.includes(q))
+    );
+    if (q && catWords.length === 0) return ''; // 搜索时隐藏空分类
+    const cfg = CAT_CONFIG[cat];
+    const highlight = (text) => q
+      ? text.replace(new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi'),
+          '<mark style="background:#fff3bf;padding:0;border-radius:2px;">$1</mark>')
+      : text;
+    return `
+      <div class="cat-section cat-${cat}">
+        <div class="cat-title">
+          <span>${cfg.label}</span>
+          <span style="font-weight:400;opacity:0.7">${catWords.length}个</span>
+        </div>
+        ${catWords.map(w => `
+          <div class="word-item" id="witem-${w.id}">
+            <span class="word-code" style="color:${cfg.color}">${highlight(w.code)}</span>
+            <span class="word-name">${highlight(w.name)}</span>
+            <span class="word-desc">${w.desc || ''}</span>
+            <div class="word-actions">
+              <button class="btn btn-ghost btn-sm" onclick="editWord(${w.id})">编辑</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteWord(${w.id})">删除</button>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  }).join('');
+  if (q && !container.innerHTML.trim()) {
+    container.innerHTML = `<div class="empty" style="padding:30px 0;">未找到包含「${q}」的词根</div>`;
+  }
+}
+
+function showAddForm() {
+  document.getElementById('addForm').style.display = 'block';
+  document.getElementById('f-code').focus();
+}
+
+function hideAddForm() {
+  document.getElementById('addForm').style.display = 'none';
+  document.getElementById('f-code').value = '';
+  document.getElementById('f-name').value = '';
+  document.getElementById('f-desc').value = '';
+}
+
+function addWord() {
+  const code = document.getElementById('f-code').value.trim().toLowerCase();
+  const name = document.getElementById('f-name').value.trim();
+  const cat  = document.getElementById('f-cat').value;
+  const desc = document.getElementById('f-desc').value.trim();
+  if (!code || !name) { alert('词根code和中文名称不能为空'); return; }
+  words.push({ id: nextId++, code, name, cat, desc });
+  saveWords();
+  buildAutoKeywords();
+  renderWordList();
+  hideAddForm();
+}
+
+function deleteWord(id) {
+  if (!confirm('确认删除该词根？')) return;
+  words = words.filter(w => w.id !== id);
+  saveWords();
+  buildAutoKeywords();
+  renderWordList();
+}
+
+function editWord(id) {
+  const w = words.find(x => x.id === id);
+  if (!w) return;
+  const el = document.getElementById(`witem-${id}`);
+  const catOptions = ['entity','process','base','metric','gran','agg','date']
+    .map(c => `<option value="${c}" ${w.cat === c ? 'selected' : ''}>${CAT_CONFIG[c].label}</option>`)
+    .join('');
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:5px;width:100%;padding:4px 0;">
+      <div style="display:flex;gap:5px;">
+        <input id="ew-code-${id}" value="${w.code}"
+          style="width:90px;padding:4px 6px;border:1px solid #4e6ef2;border-radius:4px;font-size:12px;font-family:monospace;outline:none;" />
+        <input id="ew-name-${id}" value="${w.name}"
+          style="flex:1;padding:4px 6px;border:1px solid #4e6ef2;border-radius:4px;font-size:12px;outline:none;" />
+        <select id="ew-cat-${id}"
+          style="padding:4px 6px;border:1px solid #4e6ef2;border-radius:4px;font-size:12px;outline:none;">
+          ${catOptions}
+        </select>
+      </div>
+      <div style="display:flex;gap:5px;">
+        <input id="ew-desc-${id}" value="${w.desc || ''}" placeholder="说明（可选）"
+          style="flex:1;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:12px;outline:none;" />
+        <button class="btn btn-primary btn-sm" onclick="saveEditWord(${id})">保存</button>
+        <button class="btn btn-ghost btn-sm" onclick="cancelEditWord(${id})">取消</button>
+      </div>
+    </div>
+  `;
+  document.getElementById(`ew-code-${id}`).focus();
+}
+
+function saveEditWord(id) {
+  const code = document.getElementById(`ew-code-${id}`).value.trim().toLowerCase();
+  const name = document.getElementById(`ew-name-${id}`).value.trim();
+  const cat  = document.getElementById(`ew-cat-${id}`).value;
+  const desc = document.getElementById(`ew-desc-${id}`).value.trim();
+  if (!code || !name) { alert('词根code和中文名称不能为空'); return; }
+  const w = words.find(x => x.id === id);
+  if (w) { w.code = code; w.name = name; w.cat = cat; w.desc = desc; }
+  saveWords();
+  buildAutoKeywords();
+  renderWordList();
+}
+
+function cancelEditWord(id) {
+  renderWordList();
+}
+
+function resetWords() {
+  if (!confirm('确认重置为默认词根库？自定义添加的词根将被清除。')) return;
+  localStorage.removeItem('dw_words');
+  words = JSON.parse(JSON.stringify(DEFAULT_WORDS));
+  saveWords();
+  buildAutoKeywords();
+  renderWordList();
+}
+
+// 从词根中文名自动推导关键词映射
+// 规则：取中文名中用 / 或空格分隔的每个部分，去掉括号注释，提取纯中文片段（1-6字）作为关键词
+// KEYWORD_MAP 中已有的词会覆盖此处推导的（优先级：KEYWORD_MAP > autoKeywords）
+function buildAutoKeywords() {
+  autoKeywords = {};
+  words.forEach(w => {
+    // 去掉括号内的说明，如"商详（商品详情页）"→"商详"
+    const cleanName = w.name
+      .replace(/[（(][^）)]*[）)]/g, '')  // 删除括号及其内容
+      .replace(/，.*/, '')                 // 删除顿号后的说明
+      .replace(/,.*/, '');                 // 删除英文逗号后的说明
+    // 以 / ／ 空格 顿号 为分隔符拆分
+    const parts = cleanName.split(/[\/／\s、]+/);
+    parts.forEach(part => {
+      // 只保留纯中文字符
+      const chinese = part.replace(/[^\u4e00-\u9fff]/g, '');
+      // 长度 1-8 个汉字，避免过短（单字歧义大）或过长
+      if (chinese.length >= 1 && chinese.length <= 8) {
+        if (!autoKeywords[chinese]) {
+          autoKeywords[chinese] = w.code;
+        }
+      }
+    });
+  });
+}
+
+// ============================================================
+// 命名组合器
+// ============================================================
+function openSelector(cat) {
+  currentSelectorCat = cat;
+  // 标题：biz 槽位展示所有子分类名称
+  const slotLabel = cat === 'biz'
+    ? SLOT_TO_CATS.biz.map(c => CAT_CONFIG[c].label).join(' / ')
+    : CAT_CONFIG[cat].label;
+  document.getElementById('selectorTitle').textContent = `选择 ${slotLabel}`;
+  document.getElementById('selectorFilter').value = '';
+  document.getElementById('selectorPanel').style.display = 'block';
+  filterSelector();
+  document.getElementById('selectorFilter').focus();
+}
+
+function closeSelector() {
+  document.getElementById('selectorPanel').style.display = 'none';
+  currentSelectorCat = null;
+}
+
+function clearCurrentSlot() {
+  if (currentSelectorCat) {
+    if (currentSelectorCat === 'biz') slots.biz = [];
+    else slots[currentSelectorCat] = null;
+    updateSlotUI(currentSelectorCat);
+    updateResult();
+    closeSelector();
+  }
+}
+
+function filterSelector() {
+  const slot = currentSelectorCat;
+  const q = document.getElementById('selectorFilter').value.toLowerCase();
+  const allowedCats = SLOT_TO_CATS[slot] || [slot];
+  const catWords = words.filter(w => allowedCats.includes(w.cat) && (
+    !q || w.code.includes(q) || w.name.includes(q) || (w.desc && w.desc.includes(q))
+  ));
+  const tagsHtml = catWords.map(w => {
+    const cfg = CAT_CONFIG[w.cat];
+    let sel = '';
+    if (slot === 'biz') {
+      sel = slots.biz.some(b => b.id === w.id) ? 'selected' : '';
+    } else {
+      sel = slots[slot] && slots[slot].id === w.id ? 'selected' : '';
+    }
+    return `<span class="tag ${cfg.tagCls} ${sel}" onclick="selectWord('${slot}', ${w.id})" title="${w.desc || ''}">
+      <b>${w.code}</b> ${w.name}
+    </span>`;
+  }).join('');
+  document.getElementById('selectorTags').innerHTML = tagsHtml || '<div class="empty">无匹配词根</div>';
+}
+
+function selectWord(cat, id) {
+  const word = words.find(w => w.id === id);
+  if (!word) return;
+  if (cat === 'biz') {
+    // 已选则取消，未选则追加
+    const idx = slots.biz.findIndex(b => b.id === id);
+    if (idx >= 0) slots.biz.splice(idx, 1);
+    else slots.biz.push(word);
+    updateSlotUI('biz');
+    updateResult();
+    filterSelector(); // 刷新高亮
+  } else {
+    slots[cat] = word;
+    updateSlotUI(cat);
+    updateResult();
+    closeSelector();
+  }
+}
+
+function updateSlotUI(cat) {
+  if (cat === 'biz') {
+    const box = document.getElementById('slot-biz');
+    const txt = document.getElementById('slot-biz-text');
+    if (slots.biz.length === 0) {
+      box.classList.remove('filled');
+      txt.style.display = 'inline';
+      txt.textContent = '点击选择';
+      // 清除旧 tag 徽章
+      box.querySelectorAll('.biz-chip').forEach(el => el.remove());
+    } else {
+      box.classList.add('filled');
+      txt.style.display = 'none';
+      // 重绘 chip
+      box.querySelectorAll('.biz-chip').forEach(el => el.remove());
+      slots.biz.forEach(w => {
+        const chip = document.createElement('span');
+        chip.className = 'biz-chip';
+        chip.style.cssText = 'display:inline-flex;align-items:center;gap:2px;background:#1677ff;color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:600;cursor:default;';
+        chip.innerHTML = `${w.code}<span onclick="removeBizChip(event,${w.id})" style="margin-left:2px;cursor:pointer;opacity:0.8;">×</span>`;
+        box.appendChild(chip);
+      });
+    }
+    return;
+  }
+  const box = document.getElementById(`slot-${cat}`);
+  const txt = document.getElementById(`slot-${cat}-text`);
+  const w = slots[cat];
+  if (w) {
+    box.classList.add('filled');
+    txt.innerHTML = `${w.code}<br><span style="font-size:10px;font-weight:400">${w.name}</span>`;
+  } else {
+    box.classList.remove('filled');
+    txt.textContent = '点击选择';
+  }
+}
+
+function removeBizChip(e, id) {
+  e.stopPropagation();
+  slots.biz = slots.biz.filter(b => b.id !== id);
+  updateSlotUI('biz');
+  updateResult();
+  if (currentSelectorCat === 'biz') filterSelector();
+}
+
+function updateResult() {
+  const parts = [];
+  const names = [];
+  slots.biz.forEach(w => { parts.push(w.code); names.push(w.name); });
+  if (slots.metric) { parts.push(slots.metric.code); names.push(slots.metric.name); }
+  if (slots.gran)   { parts.push(slots.gran.code);   names.push(slots.gran.name); }
+  if (slots.agg)    { parts.push(slots.agg.code);    names.push(slots.agg.name); }
+  if (slots.date)   { parts.push(slots.date.code);   names.push(slots.date.name); }
+
+  const code = parts.join('_');
+  document.getElementById('resultCode').textContent = code || '—';
+
+  if (!code) {
+    document.getElementById('resultMeta').textContent = '请选择词根构建指标名称';
+    return;
+  }
+  // 判断基础指标 vs 派生指标
+  const hasBase = slots.metric && slots.metric.cat === 'base';
+  const indicatorTag = hasBase
+    ? (slots.biz.length <= 1
+        ? `<span style="background:#e6fffb;color:#006d75;border:1px solid #87e8de;border-radius:10px;padding:0px 7px;font-size:10px;font-weight:600;">基础指标</span>`
+        : `<span style="background:#f9f0ff;color:#531dab;border:1px solid #d3adf7;border-radius:10px;padding:0px 7px;font-size:10px;font-weight:600;">派生指标</span>`)
+    : '';
+  const desc = names.join(' · ');
+  document.getElementById('resultMeta').innerHTML =
+    `${indicatorTag} ${desc}&nbsp;&nbsp;<button class="copy-btn" onclick="copyCode('${code}')">复制</button>`;
+}
+
+function clearComposer() {
+  slots = { agg: null, biz: [], metric: null, date: null };
+  updateSlotUI('biz');
+  ['agg','metric','date'].forEach(updateSlotUI);
+  updateResult();
+  closeSelector();
+}
+
+function saveToHistory() {
+  const parts = [];
+  const names = [];
+  slots.biz.forEach(w => { parts.push(w.code); names.push(w.name); });
+  if (slots.metric) { parts.push(slots.metric.code); names.push(slots.metric.name); }
+  if (slots.agg)    { parts.push(slots.agg.code);    names.push(slots.agg.name); }
+  if (slots.date)   { parts.push(slots.date.code);   names.push(slots.date.name); }
+
+  if (slots.biz.length === 0 || !slots.metric) {
+    alert('请至少选择「业务修饰词」和「原子指标词根」');
+    return;
+  }
+  const code = parts.join('_');
+  const name = names.join(' · ');
+  const entry = { code, name, time: new Date().toLocaleTimeString() };
+  if (history.length > 0 && history[0].code === code) {
+    history[0].time = entry.time;
+  } else {
+    const dupIdx = history.findIndex(h => h.code === code);
+    if (dupIdx > 0) history.splice(dupIdx, 1);
+    history.unshift(entry);
+  }
+  if (history.length > 50) history.pop();
+  saveHistoryStore();
+  renderHistory();
+}
+
+function renderHistory() {
+  const el = document.getElementById('historyList');
+  if (history.length === 0) {
+    el.innerHTML = '<div class="empty">暂无记录</div>';
+    return;
+  }
+  el.innerHTML = history.map((h, i) => `
+    <div class="history-item">
+      <span class="history-code">${h.code}</span>
+      <span class="history-name">${h.name}</span>
+      <span style="font-size:10px;color:#ccc;">${h.time}</span>
+      <button class="copy-btn" onclick="copyCode('${h.code}')">复制</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteHistory(${i})">×</button>
+    </div>
+  `).join('');
+}
+
+function deleteHistory(i) {
+  history.splice(i, 1);
+  saveHistoryStore();
+  renderHistory();
+}
+
+function clearHistory() {
+  if (!confirm('确认清空历史记录？')) return;
+  history = [];
+  saveHistoryStore();
+  renderHistory();
+}
+
+function exportHistory() {
+  if (history.length === 0) { alert('暂无历史记录'); return; }
+  const csv = '字段Code,中文含义,生成时间\n' + history.map(h => `${h.code},${h.name},${h.time}`).join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `字段命名_${new Date().toLocaleDateString()}.csv`;
+  a.click();
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => {
+    const tip = document.createElement('div');
+    tip.textContent = '已复制 ' + code;
+    Object.assign(tip.style, {
+      position: 'fixed', top: '60px', right: '20px', background: '#333', color: '#fff',
+      padding: '6px 14px', borderRadius: '6px', fontSize: '12px', zIndex: 9999,
+      animation: 'none', transition: 'opacity .3s'
+    });
+    document.body.appendChild(tip);
+    setTimeout(() => { tip.style.opacity = '0'; setTimeout(() => tip.remove(), 300); }, 1200);
+  });
+}
+
+// ============================================================
+// 中文智能搜索 & 生成
+// ============================================================
+
+// 关键词 → 词根 映射表
+const KEYWORD_MAP = {
+  // 业务词
+  '销售': 'sale',
+  '退货': 'refund',
+  '库存': 'stock', '库存量': 'stock',
+  '额': 'amt', '收益': 'amt', '营收': 'amt',
+  '笔': 'cnt', '单量': 'cnt',
+  '商品': 'spu', 'spu': 'spu', '标品': 'spu',
+  'sku': 'sku',
+  '平台': 'platform',
+  '渠道': 'channel',
+  '品牌': 'brand',
+  '类目': 'category',
+  '仓库': 'warehouse', '仓': 'warehouse',
+  '系列': 'series',
+  '客': 'buyer', '用户': 'buyer',
+  '得物': 'du',
+  '结算': 'settle',
+  '买家': 'buyer',
+  '卖家': 'merc', '商家': 'merc',
+  '订单': 'ord', '下单': 'ord',
+  '品牌': 'brand',
+  '类目': 'category',
+  '活动': 'activity', '促销': 'promotion',
+  '退款': 'refund',
+  '出价': 'bid', '竞价': 'bid',
+  '补贴': 'subsidy',
+  '折扣': 'discount', '优惠': 'coupon',
+  '新增': 'new', '新': 'new',
+  '新品': 'new',   // 新品=新(new)商品，品/商品由spu覆盖
+  '上架': 'online', '上新': 'online',  // 上架/上新=online
+  '在售': 'sale', '热销': 'sale',
+  '品': 'spu', '商品': 'spu', '单品': 'item',  // 品/商品→spu，单品→item
+  '老': 'old',
+  '首次': 'first', '首单': 'first',
+  '男': 'male', '女': 'female',
+  'nps': 'nps',
+  '现货': 'spot', '存仓': 'deposit', '寄卖': 'consign',
+  '预售': 'presale',
+  '二手': 'second',
+  '风控': 'risk',
+  '质检': 'qc',
+  '推荐': 'recommend',
+  '曝光': 'exp',
+  '品质': 'quality',
+  '补贴': 'subsidy',
+  '发货': 'deliver',
+  '最高': 'max', '最大': 'max',   // 默认归 biz（如最高出价），含"值"字时归 agg
+  '最低': 'min', '最小': 'min',
+  '最大值': 'max_agg', '最高值': 'max_agg',  // 明确聚合语义
+  '最小值': 'min_agg', '最低值': 'min_agg',
+  // 聚合词
+  '平均': 'avg', '均值': 'avg', '均': 'avg',
+  '求和': 'sum', '合计': 'total',
+  '占比': 'ratio', '比例': 'ratio',
+  '排名': 'rank',
+  '差值': 'diff',
+  // 日期
+  '当日': 'td', '今日': 'td', '当天': 'td',
+  '近1天': '1d', '近1日': '1d', '1天': '1d', '1日': '1d',
+  '近2天': '2d', '近2日': '2d', '2天': '2d', '2日': '2d',
+  '近3天': '3d', '近3日': '3d', '3天': '3d', '3日': '3d',
+  '近5天': '5d', '近5日': '5d', '5天': '5d', '5日': '5d',
+  '近7日': '7d', '近7天': '7d', '7日': '7d', '7天': '7d', '七日': '7d', '七天': '7d',
+  '近10天': '10d', '近10日': '10d', '10天': '10d', '10日': '10d',
+  '近14天': '14d', '近14日': '14d', '14天': '14d', '14日': '14d',
+  '近15天': '15d', '近15日': '15d', '15天': '15d', '15日': '15d',
+  '近20天': '20d', '近20日': '20d', '20天': '20d', '20日': '20d',
+  '近30日': '30d', '近30天': '30d', '30日': '30d', '30天': '30d',
+  '近45天': '45d', '近45日': '45d', '45天': '45d', '45日': '45d',
+  '近60天': '60d', '近60日': '60d', '60天': '60d', '60日': '60d',
+  '近90天': '90d', '近90日': '90d', '90日': '90d', '90天': '90d',
+  '近120天': '120d', '近120日': '120d', '120天': '120d', '120日': '120d',
+  '近180天': '180d', '近180日': '180d', '180天': '180d', '半年': '180d',
+  '近365天': '365d', '近365日': '365d', '365天': '365d', '一年': '365d',
+  '本周': 'wtd', '周': 'wtd',
+  '本月': 'mtd',
+  '本季度': 'qtd', '季度': 'qtd',
+  '本年': 'ytd',
+  '上周': 'lwtd', '上月': 'lmtd', '上季度': 'lqtd',
+  '同比': 'yoy', '环比': 'mom',
+  // 业务过程
+  '交易': 'trade', '成交': 'trade',
+  // 复合短语（整体识别为 cnt，避免拆出多余 biz 词）
+  '支付订单量': 'cnt', '支付订单数': 'cnt',
+  '交易订单量': 'cnt', '交易订单数': 'cnt',
+  '订单量': 'cnt', '订单数': 'cnt',
+  // 指标
+  '成交额': 'gmv', 'gmv': 'gmv',
+  '金额': 'amt',
+  '价格': 'price', '单价': 'price',
+  '价值': 'value',
+  '数量': 'cnt', '笔数': 'cnt', '件数': 'cnt',
+  '访客': 'uv', 'uv': 'uv',
+  '访问量': 'pv', 'pv': 'pv',
+  '转化率': 'cr', '转化': 'cr',
+  '评分': 'score',
+  '库存': 'stock',
+  '收藏': 'collect',
+  '点击': 'click',
+  '搜索': 'search',
+  '费用': 'fee',
+  // 新增实体词
+  '店铺': 'store', '门店': 'store',
+  '供应商': 'supplier',
+  '单品': 'item', '商品项': 'item',
+  '属性': 'attr',
+  '来源': 'source',
+  '子类目': 'sub', '子级': 'sub',
+  '联名': 'co', '合作品牌': 'co',
+  '商详': 'pdp', '商品详情页': 'pdp', 'pdp': 'pdp',
+  // 新增业务过程词
+  '闪购': 'flash', '闪电': 'flash',
+  '虚拟': 'virtual',
+  '加购': 'cart', '购物车': 'cart',
+  '创建': 'create', '新增时间': 'create',
+  '更新': 'update', '修改时间': 'update',
+  // 新增度量词
+  '点击率': 'ctr', 'ctr': 'ctr',
+  '曝光量': 'exposure', '曝光数': 'exposure',
+  '收藏量': 'favorite', '喜欢数': 'favorite',
+  '区间': 'range', '价格区间': 'range',
+  '时间戳': 'time', '时间': 'time',
+  '在架': 'online', '在售': 'sale',
+};
+
+// 无语义的单字/量词，匹配后仅标记覆盖，不映射词根，不报 unmatched
+// 常见于日期修饰词的前缀（近）、后缀（天/日）、数字分隔等
+const IGNORE_WORDS = new Set(['近','天','日','个','月','季','年','号','周','内','共','约','每','均','额','量','数','率','值','度','次','笔','件','人','项']);
+
+// 复合关键词：同时产生 biz + metric（长度优先，覆盖子词）
+const COMPOUND_KEYWORDS = {
+  '成交金额': { biz: 'trade', metric: 'gmv' },
+  '交易金额': { biz: 'trade', metric: 'gmv' },
+};
+
+// 哪些关键词归属 biz（允许多个），哪些归属 agg/metric/date（单个）
+// 规则：先匹配 agg/metric/date，biz 收集所有剩余
+const AGG_CODES   = new Set(['avg','sum','max','min']);
+const DATE_CODES  = new Set(['td','1d','2d','3d','5d','7d','10d','14d','15d','20d','30d','45d','60d','90d','120d','180d','300','365d','1m','l1m','1q','mtd','wtd','qtd','ytd','lwtd','lmtd','lqtd','yoy','mom','std','eod','datetime','date','day','days','hour']);
+const METRIC_CODES= new Set(['gmv','amt','price','fee','uv','pv','cr','flag','id','ids','type','level','name','title','url','img','image','video','size','limit','remain','list','tag','label','json','properties','property','detail','comment','reason','result','report','content','value','duration','capacity','style','no','num','quantity','info','status','stock','inv','qty','collect','click','search','access',
+  'cnt','score','weight','rate','degree','diff','total','rank','index','top','ratio','pct',
+  'ctr','exposure','favorite','range','time']);
+
+function smartParse(text) {
+  const t = text.trim();
+  const tl = t.toLowerCase(); // 用于英文大小写不敏感匹配
+  const result = { biz: [], metric: null, gran: null, agg: null, date: null };
+  const bizPos = new Map(); // word.id → 在原文中的匹配位置，用于最终排序
+
+  // 合并所有关键词（复合优先），按长度降序排列
+  // effectiveMap: autoKeywords（从词根名推导）被 KEYWORD_MAP（手动维护）覆盖
+  const effectiveMap = Object.assign({}, autoKeywords, KEYWORD_MAP);
+  const allKws = [
+    ...Object.keys(COMPOUND_KEYWORDS),
+    ...Object.keys(effectiveMap),
+  ].sort((a, b) => b.length - a.length);
+  const used = new Map(); // kw → 实际匹配位置（避免事后 indexOf 查错位置）
+
+  for (const kw of allKws) {
+    const pos = tl.indexOf(kw.toLowerCase()); // 大小写不敏感匹配
+    if (pos === -1) continue;
+    let covered = false;
+    for (const [u, uPos] of used) {
+      if (uPos <= pos && pos < uPos + u.length) { covered = true; break; }
+    }
+    if (covered) continue;
+    used.set(kw, pos);
+
+    // 复合关键词：同时填入 biz + metric
+    if (COMPOUND_KEYWORDS[kw]) {
+      const comp = COMPOUND_KEYWORDS[kw];
+      const bizW = words.find(x => x.code === comp.biz && (x.cat === 'entity' || x.cat === 'process'));
+      if (bizW && !result.biz.some(b => b.id === bizW.id)) {
+        result.biz.push(bizW);
+        bizPos.set(bizW.id, pos);
+      }
+      if (!result.metric) {
+        const metricW = words.find(x => x.code === comp.metric && (x.cat === 'base' || x.cat === 'metric'));
+        if (metricW) result.metric = metricW;
+      }
+      continue;
+    }
+
+    const code = effectiveMap[kw];
+
+    // 明确聚合语义的特殊 code（最大值/最小值）
+    if (code === 'max_agg') {
+      const w = words.find(x => x.code === 'max' && x.cat === 'agg');
+      if (w && !result.agg) { result.agg = w; }
+      continue;
+    }
+    if (code === 'min_agg') {
+      const w = words.find(x => x.code === 'min' && x.cat === 'agg');
+      if (w && !result.agg) { result.agg = w; }
+      continue;
+    }
+
+    // 判断类型：date > metric > agg > biz（max/min 默认归 biz）
+    if (DATE_CODES.has(code) && !result.date) {
+      const w = words.find(x => x.code === code && x.cat === 'date');
+      if (w) { result.date = w; continue; }
+    }
+    if (METRIC_CODES.has(code) && !result.metric) {
+      const w = words.find(x => x.code === code && (x.cat === 'base' || x.cat === 'metric'));
+      if (w) { result.metric = w; continue; }
+    }
+    // gran：动态匹配 cat=gran 的词根
+    if (!result.gran) {
+      const w = words.find(x => x.code === code && x.cat === 'gran');
+      if (w) { result.gran = w; continue; }
+    }
+    // agg 优先：max/min/avg/sum 先尝试归聚合槽，agg 已占用时降级归 biz（process）
+    if (AGG_CODES.has(code)) {
+      if (!result.agg) {
+        const w = words.find(x => x.code === code && x.cat === 'agg');
+        if (w) { result.agg = w; continue; }
+      } else {
+        const bizW = words.find(x => x.code === code && x.cat === 'process');
+        if (bizW && !result.biz.some(b => b.id === bizW.id)) {
+          result.biz.push(bizW);
+          bizPos.set(bizW.id, pos);
+        }
+        continue;
+      }
+    }
+    // 默认归 biz（优先找 entity/process，回退找任意）
+    const bizW = words.find(x => x.code === code && (x.cat === 'entity' || x.cat === 'process'))
+               || words.find(x => x.code === code);
+    if (bizW && !result.biz.some(b => b.id === bizW.id)) {
+      result.biz.push(bizW);
+      bizPos.set(bizW.id, pos);
+    }
+  }
+
+  // 按词根在原文中出现的位置升序排列 biz，保证命名顺序与文本顺序一致
+  result.biz.sort((a, b) => (bizPos.get(a.id) ?? 9999) - (bizPos.get(b.id) ?? 9999));
+
+  // 检测输入中未被任何关键词覆盖的中文字符片段
+  const coveredPos = new Array(t.length).fill(false);
+  for (const [kw, pos] of used) {
+    for (let i = pos; i < pos + kw.length; i++) coveredPos[i] = true;
+  }
+  const unmatched = [];
+  let seg = '';
+  for (let i = 0; i <= t.length; i++) {
+    const ch = t[i] || '';
+    // IGNORE_WORDS 单字视为已覆盖（量词/前后缀，不报 unmatched）
+    const isIgnored = i < t.length && IGNORE_WORDS.has(ch);
+    if (i < t.length && !coveredPos[i] && !isIgnored && /[\u4e00-\u9fff]/.test(ch)) {
+      seg += ch;
+    } else {
+      if (seg.length > 0) { unmatched.push(seg); seg = ''; }
+    }
+  }
+  result.unmatched = unmatched;
+
+  return result;
+}
+
+function buildCode(parsed) {
+  const parts = [];
+  (parsed.biz || []).forEach(w => parts.push(w.code));
+  if (parsed.metric) parts.push(parsed.metric.code);
+  if (parsed.gran)   parts.push(parsed.gran.code);
+  if (parsed.agg)    parts.push(parsed.agg.code);
+  if (parsed.date)   parts.push(parsed.date.code);
+  return parts.join('_');
+}
+
+function onSearchInput() {
+  const val = document.getElementById('searchInput').value;
+  if (!val.trim()) { document.getElementById('searchSuggest').style.display = 'none'; return; }
+  showSuggest(val);
+}
+
+function showSuggest(text) {
+  const parsed = smartParse(text);
+  const el = document.getElementById('searchSuggest');
+
+  // 有未匹配词：实时预览仍显示，但加红色警告，且阻止点击应用
+  const unmatchedWarn = (parsed.unmatched||[]).length > 0
+    ? `<div style="color:#ff4d4f;font-size:11px;font-weight:600;margin-top:4px;">
+         ⚠ 缺少词根：${parsed.unmatched.map(w=>`「${w}」`).join(' ')}
+         &nbsp;<a href="javascript:void(0)" onclick="quickAddHint('${parsed.unmatched[0]}')" style="color:#4e6ef2;font-size:11px;">去添加</a>
+       </div>`
+    : '';
+
+  const code = buildCode(parsed);
+  if (!code && !unmatchedWarn) { el.style.display = 'none'; el._parsed = null; return; }
+
+  const allWords = [...(parsed.biz||[]), parsed.metric, parsed.gran, parsed.agg, parsed.date].filter(Boolean);
+  const name = allWords.map(w => w.name).join(' · ');
+  const parts = [];
+  (parsed.biz||[]).forEach(w => {
+    const cls = CAT_CONFIG[w.cat] ? CAT_CONFIG[w.cat].tagCls : 'tag-entity';
+    parts.push(`<span class="tag ${cls}" style="padding:1px 5px;font-size:11px;">${w.code}</span>`);
+  });
+  if (parsed.metric) { const cls = CAT_CONFIG[parsed.metric.cat]?.tagCls || 'tag-base'; parts.push(`<span class="tag ${cls}" style="padding:1px 5px;font-size:11px;">${parsed.metric.code}</span>`); }
+  if (parsed.gran)   parts.push(`<span class="tag tag-gran" style="padding:1px 5px;font-size:11px;">${parsed.gran.code}</span>`);
+  if (parsed.agg)    parts.push(`<span class="tag tag-agg" style="padding:1px 5px;font-size:11px;">${parsed.agg.code}</span>`);
+  if (parsed.date)   parts.push(`<span class="tag tag-date" style="padding:1px 5px;font-size:11px;">${parsed.date.code}</span>`);
+
+  // 判断基础指标 vs 派生指标
+  const bizCount = (parsed.biz||[]).length;
+  const hasBase = parsed.metric && (parsed.metric.cat === 'base');
+  let indicatorType = '';
+  if (hasBase && !unmatchedWarn) {
+    indicatorType = bizCount <= 1
+      ? `<span style="background:#e6fffb;color:#006d75;border:1px solid #87e8de;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:600;">基础指标</span>`
+      : `<span style="background:#f9f0ff;color:#531dab;border:1px solid #d3adf7;border-radius:10px;padding:1px 7px;font-size:10px;font-weight:600;">派生指标</span>`;
+  }
+
+  // 有未匹配词时不可点击应用
+  const clickable = (parsed.unmatched||[]).length === 0 && code;
+  el.innerHTML = `
+    <div class="suggest-item" ${clickable ? 'onclick="applySuggest()"' : 'style="cursor:default;"'}>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span class="suggest-code" style="${unmatchedWarn ? 'color:#ff4d4f;text-decoration:line-through;opacity:0.5;' : ''}">${code || '—'}</span>
+        ${indicatorType}
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">${parts.join('')}</div>
+      ${name ? `<span class="suggest-name">${name}</span>` : ''}
+      ${unmatchedWarn}
+    </div>
+  `;
+  el._parsed = clickable ? parsed : null;
+  el.style.display = 'block';
+}
+
+function applySuggest() {
+  const el = document.getElementById('searchSuggest');
+  if (!el._parsed) return;
+  const parsed = el._parsed;
+  slots = { biz: [...(parsed.biz||[])], metric: parsed.metric, gran: parsed.gran, agg: parsed.agg, date: parsed.date };
+  updateSlotUI('biz');
+  ['metric','gran','agg','date'].forEach(updateSlotUI);
+  updateResult();
+  el.style.display = 'none';
+  const code = buildCode(parsed);
+  const allWords = [...(parsed.biz||[]), parsed.metric, parsed.gran, parsed.agg, parsed.date].filter(Boolean);
+  const entry = { code, name: allWords.map(w=>w.name).join(' · '), time: new Date().toLocaleTimeString() };
+  // 去重：同一 code 已在顶部则直接更新时间，否则插入
+  if (history.length > 0 && history[0].code === code) {
+    history[0].time = entry.time;
+  } else {
+    const dupIdx = history.findIndex(h => h.code === code);
+    if (dupIdx > 0) history.splice(dupIdx, 1);
+    history.unshift(entry);
+  }
+  if (history.length > 50) history.pop();
+  saveHistoryStore();
+  renderHistory();
+}
+
+// 快速打开新增词根表单（用搜索词预填中文名）
+function quickAddHint(hint) {
+  document.getElementById('searchSuggest').style.display = 'none';
+  showAddForm();
+  document.getElementById('f-name').value = hint;
+  document.getElementById('f-code').focus();
+  // 滚动到左侧面板
+  document.querySelector('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function onSearchKey(e) {
+  if (e.key === 'Enter') generateFromSearch();
+}
+
+function generateFromSearch() {
+  const val = document.getElementById('searchInput').value.trim();
+  if (!val) return;
+  const parsed = smartParse(val);
+  const el = document.getElementById('searchSuggest');
+
+  // 有未匹配词：直接报错，不输出任何 code
+  if ((parsed.unmatched||[]).length > 0) {
+    el._parsed = null;
+    el.innerHTML = `<div style="padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+        <span style="color:#ff4d4f;font-weight:600;">⚠ 缺少词根</span>
+        <span style="font-size:11px;color:#666;">「${parsed.unmatched.map(w=>`${w}`).join('、')}」暂无对应词根，无法生成</span>
+      </div>
+      <div style="font-size:11px;color:#999;">
+        请在左侧<a href="javascript:void(0)" onclick="quickAddHint('${parsed.unmatched[0].replace(/'/g,'')}')" style="color:#4e6ef2;text-decoration:none;font-weight:600;">词根库中添加</a>后重试
+      </div>
+    </div>`;
+    el.style.display = 'block';
+    return;
+  }
+
+  const code = buildCode(parsed);
+  if (!code) {
+    el._parsed = null;
+    el.innerHTML = `<div style="padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
+        <span style="color:#ff4d4f;font-weight:600;">⚠ 未识别到匹配词根</span>
+        <span style="font-size:11px;color:#666;">「${val}」中的词汇暂无对应词根</span>
+      </div>
+      <div style="font-size:11px;color:#999;">
+        请在左侧<a href="javascript:void(0)" onclick="quickAddHint('${val.replace(/'/g, '')}')" style="color:#4e6ef2;text-decoration:none;font-weight:600;">词根库中添加</a>相关词根后重试
+      </div>
+    </div>`;
+    el.style.display = 'block';
+    return;
+  }
+  el._parsed = parsed;
+  applySuggest();
+}
+
+// ============================================================
+// 批量生成
+// ============================================================
+function batchGenerate() {
+  const lines = document.getElementById('batchInput').value.split('\n').filter(l => l.trim());
+  if (lines.length === 0) return;
+  const el = document.getElementById('batchResults');
+  el.innerHTML = lines.map(line => {
+    const parsed = smartParse(line.trim());
+    // 有未匹配词：显示错误，不输出 code
+    if ((parsed.unmatched||[]).length > 0) {
+      return `<div class="batch-item" style="border-color:#ffccc7;background:#fff2f0;">
+        <span style="font-size:12px;color:#666;">${line.trim()}</span>
+        <span class="batch-arrow" style="color:#ff4d4f;">→</span>
+        <span style="color:#ff4d4f;font-size:12px;font-weight:600;">⚠ 缺少词根：${parsed.unmatched.map(w=>`「${w}」`).join(' ')}</span>
+        <a href="javascript:void(0)" onclick="quickAddHint('${parsed.unmatched[0].replace(/'/g,'')}')" style="color:#4e6ef2;font-size:11px;margin-left:4px;">去添加</a>
+      </div>`;
+    }
+    const code = buildCode(parsed);
+    if (!code) {
+      return `<div class="batch-item"><span style="color:#999;">${line}</span><span class="batch-arrow">→</span><span style="color:#ccc;">未识别</span></div>`;
+    }
+    return `<div class="batch-item">
+      <span style="font-size:12px;color:#666;">${line.trim()}</span>
+      <span class="batch-arrow">→</span>
+      <span class="batch-code">${code}</span>
+      <button class="copy-btn" onclick="copyCode('${code}')">复制</button>
+    </div>`;
+  }).join('');
+
+  // 批量添加到历史（有未匹配词的行跳过）
+  lines.forEach(line => {
+    const parsed = smartParse(line.trim());
+    if ((parsed.unmatched||[]).length > 0) return;
+    const code = buildCode(parsed);
+    if (code) {
+      const allWords = [...(parsed.biz||[]), parsed.metric, parsed.gran, parsed.agg, parsed.date].filter(Boolean);
+      history.unshift({ code, name: allWords.map(w=>w.name).join(' · '), time: new Date().toLocaleTimeString() });
+    }
+  });
+  if (history.length > 50) history.length = 50;
+  saveHistoryStore();
+  renderHistory();
+}
+
+function clearBatch() {
+  document.getElementById('batchInput').value = '';
+  document.getElementById('batchResults').innerHTML = '';
+}
+
+function exportBatch() {
+  const lines = document.getElementById('batchInput').value.split('\n').filter(l => l.trim());
+  if (lines.length === 0) { alert('请先输入内容并批量生成'); return; }
+  const rows = lines.map(line => {
+    const parsed = smartParse(line.trim());
+    const code = buildCode(parsed);
+    return `${line.trim()},${code || '未识别'}`;
+  });
+  const csv = '中文名称,字段Code\n' + rows.join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = `批量命名_${new Date().toLocaleDateString()}.csv`; a.click();
+}
+
+// 点击页面其他区域关闭建议
+document.addEventListener('click', e => {
+  if (!e.target.closest('#searchSuggest') && !e.target.closest('#searchInput') && !e.target.closest('#btnGenerate')) {
+    document.getElementById('searchSuggest').style.display = 'none';
+  }
+});
+
+// ============================================================
+// GitHub 配置 & 同步
+// ============================================================
+let ghConfig = null;      // { repo, path, token, branch }
+let remoteFileSha = null; // 当前远程文件的 SHA，推送时需要
+let localDirty = false;   // 本地有未推送的改动
+
+function loadConfig() {
+  const s = localStorage.getItem('gh_config');
+  if (s) ghConfig = JSON.parse(s);
+}
+
+function saveConfig() {
+  const repo   = document.getElementById('cfg-repo').value.trim();
+  const path   = document.getElementById('cfg-path').value.trim() || 'words.json';
+  const token  = document.getElementById('cfg-token').value.trim();
+  const branch = document.getElementById('cfg-branch').value.trim() || 'main';
+  if (!repo || !token) { alert('仓库和 Token 不能为空'); return; }
+  ghConfig = { repo, path, token, branch };
+  localStorage.setItem('gh_config', JSON.stringify(ghConfig));
+  closeConfigModal();
+  syncPull();
+}
+
+function openConfigModal() {
+  loadConfig();
+  if (ghConfig) {
+    document.getElementById('cfg-repo').value   = ghConfig.repo   || '';
+    document.getElementById('cfg-path').value   = ghConfig.path   || 'words.json';
+    document.getElementById('cfg-token').value  = ghConfig.token  || '';
+    document.getElementById('cfg-branch').value = ghConfig.branch || 'main';
+  } else {
+    document.getElementById('cfg-path').value   = 'words.json';
+    document.getElementById('cfg-branch').value = 'main';
+  }
+  document.getElementById('cfg-test-result').textContent = '';
+  document.getElementById('configModal').style.display = 'flex';
+}
+
+function closeConfigModal() {
+  document.getElementById('configModal').style.display = 'none';
+}
+
+async function testGithubConfig() {
+  const repo   = document.getElementById('cfg-repo').value.trim();
+  const path   = document.getElementById('cfg-path').value.trim() || 'words.json';
+  const token  = document.getElementById('cfg-token').value.trim();
+  const branch = document.getElementById('cfg-branch').value.trim() || 'main';
+  const el = document.getElementById('cfg-test-result');
+  if (!repo || !token) { el.style.color='#ff4d4f'; el.textContent='请先填写仓库和 Token'; return; }
+  el.style.color = '#666'; el.textContent = '连接中...';
+  try {
+    const res = await ghGetFile({ repo, path, token, branch });
+    if (res.ok) {
+      el.style.color = '#52c41a';
+      el.textContent = `✓ 连接成功，文件已存在（${JSON.parse(atob(res.data.content)).length} 个词根）`;
+    } else if (res.status === 404) {
+      el.style.color = '#faad14';
+      el.textContent = '⚠ 文件不存在，保存后将自动创建';
+    } else {
+      el.style.color = '#ff4d4f';
+      el.textContent = `✗ 错误 ${res.status}：${res.msg}`;
+    }
+  } catch(e) {
+    el.style.color = '#ff4d4f';
+    el.textContent = '✗ 网络错误：' + e.message;
+  }
+}
+
+// 底层：读取文件
+async function ghGetFile(cfg) {
+  const url = `https://api.github.com/repos/${cfg.repo}/contents/${cfg.path}?ref=${cfg.branch}&t=${Date.now()}`;
+  const res = await fetch(url, {
+    headers: { Authorization: `token ${cfg.token}`, Accept: 'application/vnd.github.v3+json' }
+  });
+  const data = res.ok ? await res.json() : null;
+  return { ok: res.ok, status: res.status, data, msg: data?.message || '' };
+}
+
+// 底层：写入文件
+async function ghPutFile(cfg, content, sha, message) {
+  const url = `https://api.github.com/repos/${cfg.repo}/contents/${cfg.path}`;
+  const body = {
+    message,
+    content: btoa(unescape(encodeURIComponent(content))),
+    branch: cfg.branch,
+  };
+  if (sha) body.sha = sha;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: {
+      Authorization: `token ${cfg.token}`,
+      Accept: 'application/vnd.github.v3+json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  return { ok: res.ok, status: res.status, data, msg: data?.message || '' };
+}
+
+function setSyncState(state, text) {
+  // state: 'ok' | 'warn' | 'err' | 'loading'
+  const dot  = document.getElementById('syncDot');
+  const txt  = document.getElementById('syncText');
+  const pull = document.getElementById('syncPullBtn');
+  const push = document.getElementById('syncPushBtn');
+  dot.className = `sync-dot ${state}`;
+  txt.textContent = text;
+  const hasGh = !!ghConfig;
+  pull.style.display = hasGh ? '' : 'none';
+  push.style.display = hasGh ? '' : 'none';
+}
+
+// 拉取远程词根库
+async function syncPull() {
+  if (!ghConfig) { openConfigModal(); return; }
+  setSyncState('loading', '拉取中...');
+  try {
+    const res = await ghGetFile(ghConfig);
+    if (res.ok) {
+      remoteFileSha = res.data.sha;
+      const remoteWords = JSON.parse(decodeURIComponent(escape(atob(res.data.content))));
+      mergeRemoteWords(remoteWords);
+      localDirty = false;
+      setSyncState('ok', `已同步 · ${remoteWords.length} 个词根 · ${new Date().toLocaleTimeString()}`);
+    } else if (res.status === 404) {
+      // 文件不存在，推送当前本地数据创建文件
+      setSyncState('warn', '远程文件不存在，将自动创建...');
+      await syncPush(true);
+    } else {
+      setSyncState('err', `拉取失败：${res.msg || res.status}`);
+    }
+  } catch(e) {
+    setSyncState('err', '网络错误，使用本地缓存');
+  }
+}
+
+// 合并远程词根（以远程为主，保留本地新增的词根）
+function mergeRemoteWords(remoteWords) {
+  // 远程词根直接覆盖同 id 的本地词根
+  remoteWords.forEach(rw => {
+    const idx = words.findIndex(w => w.id === rw.id);
+    if (idx >= 0) words[idx] = rw;
+    else words.push(rw);
+  });
+  // 删除远程已不存在、且非本地新增（id < 500 的是内置词根）的词根
+  const remoteIds = new Set(remoteWords.map(w => w.id));
+  words = words.filter(w => w.id >= 500 || remoteIds.has(w.id));
+  nextId = words.reduce((m, w) => Math.max(m, w.id), 499) + 1;
+  localStorage.setItem('dw_words', JSON.stringify(words));
+  buildAutoKeywords();
+  renderWordList();
+  updateResult();
+}
+
+// 推送本地词根库到 GitHub
+async function syncPush(isInit = false) {
+  if (!ghConfig) { openConfigModal(); return; }
+  setSyncState('loading', '推送中...');
+  try {
+    // 推送前先取最新 sha，避免冲突
+    if (!remoteFileSha && !isInit) {
+      const res = await ghGetFile(ghConfig);
+      if (res.ok) remoteFileSha = res.data.sha;
+    }
+    const content = JSON.stringify(words, null, 2);
+    const now = new Date().toLocaleString('zh-CN', { hour12: false });
+    const msg = `update words: ${words.length} 个词根 [${now}]`;
+    const res = await ghPutFile(ghConfig, content, remoteFileSha, msg);
+    if (res.ok) {
+      remoteFileSha = res.data.content?.sha;
+      localDirty = false;
+      setSyncState('ok', `推送成功 · ${words.length} 个词根 · ${new Date().toLocaleTimeString()}`);
+    } else if (res.status === 409) {
+      setSyncState('err', '冲突：远程已更新，请先拉取再推送');
+    } else {
+      setSyncState('err', `推送失败：${res.msg || res.status}`);
+    }
+  } catch(e) {
+    setSyncState('err', '网络错误：' + e.message);
+  }
+}
+
+// ============================================================
+// 启动
+// ============================================================
+init();
+</script>
+
+<!-- GitHub 配置弹窗 -->
+<div class="modal-mask" id="configModal" style="display:none" onclick="if(event.target===this)closeConfigModal()">
+  <div class="modal-box">
+    <div class="modal-title">⚙ GitHub 词根库配置</div>
+    <div class="modal-sub">配置后词根库将同步到 GitHub，团队所有人共享同一份数据</div>
+    <div class="modal-field">
+      <label>GitHub 仓库（owner/repo）</label>
+      <input id="cfg-repo" placeholder="例如：myteam/dw-words" />
+      <div class="hint">存放 words.json 的仓库，需已创建</div>
+    </div>
+    <div class="modal-field">
+      <label>文件路径</label>
+      <input id="cfg-path" placeholder="words.json" />
+      <div class="hint">词根库文件在仓库中的路径，默认 words.json</div>
+    </div>
+    <div class="modal-field">
+      <label>Personal Access Token（PAT）</label>
+      <input id="cfg-token" type="password" placeholder="ghp_xxxxxxxxxxxx" />
+      <div class="hint">Token 仅存储在本地浏览器，不会上传。需有仓库的 Contents 读写权限。
+        <a href="https://github.com/settings/tokens/new?scopes=repo&description=dw-field-tool" target="_blank" style="color:#4e6ef2">去创建 Token →</a>
+      </div>
+    </div>
+    <div class="modal-field">
+      <label>分支（Branch）</label>
+      <input id="cfg-branch" placeholder="main" />
+      <div class="hint">推送到哪个分支，默认 main</div>
+    </div>
+    <div id="cfg-test-result" style="font-size:12px;min-height:18px;margin-top:4px;"></div>
+    <div class="modal-actions">
+      <button class="sync-btn" onclick="testGithubConfig()">测试连接</button>
+      <button class="sync-btn" onclick="closeConfigModal()">取消</button>
+      <button class="sync-btn primary" onclick="saveConfig()">保存并同步</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
