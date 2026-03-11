@@ -199,7 +199,6 @@
     <div class="panel-header">
       <span class="panel-title">词根库管理</span>
       <button class="btn btn-primary btn-sm" onclick="showAddForm()">+ 新增词根</button>
-      <button class="btn btn-ghost btn-sm" onclick="resetWords()" title="重置为基于 ads_rpt_trd_spu_base_df 分析的默认词根">重置默认</button>
     </div>
     <!-- GitHub 同步状态栏 -->
     <div class="sync-bar" id="syncBar">
@@ -1522,15 +1521,17 @@ function batchGenerate() {
     </div>`;
   }).join('');
 
-  // 批量添加到历史（有未匹配词的行跳过）
+  // 批量添加到历史（有未匹配词的行跳过，同 code 去重）
   lines.forEach(line => {
     const parsed = smartParse(line.trim());
     if ((parsed.unmatched||[]).length > 0) return;
     const code = buildCode(parsed);
-    if (code) {
-      const allWords = [...(parsed.biz||[]), parsed.metric, parsed.gran, parsed.agg, parsed.date].filter(Boolean);
-      history.unshift({ code, name: allWords.map(w=>w.name).join(' · '), time: new Date().toLocaleTimeString() });
-    }
+    if (!code) return;
+    const allWords = [...(parsed.biz||[]), parsed.metric, parsed.gran, parsed.agg, parsed.date].filter(Boolean);
+    const entry = { code, name: allWords.map(w=>w.name).join(' · '), time: new Date().toLocaleTimeString() };
+    const dupIdx = history.findIndex(h => h.code === code);
+    if (dupIdx >= 0) history.splice(dupIdx, 1);
+    history.unshift(entry);
   });
   if (history.length > 50) history.length = 50;
   saveHistoryStore();
