@@ -1588,6 +1588,7 @@ function openConfigModal() {
     document.getElementById('cfg-token').value  = ghConfig.token  || '';
     document.getElementById('cfg-branch').value = ghConfig.branch || 'main';
   } else {
+    document.getElementById('cfg-repo').value   = 'chennan/dw-field-tool';
     document.getElementById('cfg-path').value   = 'words.json';
     document.getElementById('cfg-branch').value = 'main';
   }
@@ -1755,7 +1756,7 @@ setTimeout(() => { document.getElementById('searchInput').value = ''; }, 100);
     <div class="modal-sub">配置后词根库将同步到 GitHub，团队所有人共享同一份数据</div>
     <div class="modal-field">
       <label>GitHub 仓库（owner/repo）</label>
-      <input id="cfg-repo" placeholder="例如：myteam/dw-words" />
+      <input id="cfg-repo" placeholder="例如：chennan/dw-field-tool" />
       <div class="hint">存放 words.json 的仓库，需已创建</div>
     </div>
     <div class="modal-field">
