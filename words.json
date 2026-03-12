@@ -1461,5 +1461,26 @@
     "name": "国内/内部",
     "cat": "process",
     "desc": ""
+  },
+  {
+    "id": 502,
+    "code": "share",
+    "name": "分享",
+    "cat": "entity",
+    "desc": ""
+  },
+  {
+    "id": 503,
+    "code": "wear",
+    "name": "穿搭",
+    "cat": "entity",
+    "desc": ""
+  },
+  {
+    "id": 504,
+    "code": "selection",
+    "name": "精选/选择",
+    "cat": "entity",
+    "desc": ""
   }
 ]
