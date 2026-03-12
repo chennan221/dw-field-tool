@@ -602,13 +602,6 @@
     "desc": "最低/最小限定，如最低出价"
   },
   {
-    "id": 86,
-    "code": "pay",
-    "name": "支付",
-    "cat": "process",
-    "desc": "支付行为，如支付金额、支付笔数"
-  },
-  {
     "id": 104,
     "code": "avg",
     "name": "平均值",
@@ -1116,7 +1109,7 @@
     "id": 321,
     "code": "pay",
     "name": "支付",
-    "cat": "metric",
+    "cat": "process",
     "desc": "支付相关指标"
   },
   {
@@ -1502,6 +1495,13 @@
     "code": "page",
     "name": "页",
     "cat": "entity",
+    "desc": ""
+  },
+  {
+    "id": 508,
+    "code": "over",
+    "name": "海外",
+    "cat": "process",
     "desc": ""
   }
 ]
