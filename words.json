@@ -9,7 +9,7 @@
   {
     "id": 2,
     "code": "merc",
-    "name": "商家",
+    "name": "商家/卖家/企业家",
     "cat": "entity",
     "desc": "Merchant缩写"
   },
@@ -639,7 +639,7 @@
   {
     "id": 101,
     "code": "cnt",
-    "name": "数量/计数",
+    "name": "数量/计数/数/张/个",
     "cat": "base",
     "desc": "某类对象的个数"
   },
@@ -1453,6 +1453,13 @@
     "code": "lm",
     "name": "上月",
     "cat": "date",
+    "desc": ""
+  },
+  {
+    "id": 501,
+    "code": "internal",
+    "name": "国内/内部",
+    "cat": "process",
     "desc": ""
   }
 ]
