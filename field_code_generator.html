@@ -1383,8 +1383,7 @@ function showSuggest(text) {
   // 有未匹配词：实时预览仍显示，但加红色警告，且阻止点击应用
   const unmatchedWarn = (parsed.unmatched||[]).length > 0
     ? `<div style="color:#ff4d4f;font-size:11px;font-weight:600;margin-top:4px;">
-         ⚠ 缺少词根：${parsed.unmatched.map(w=>`「${w}」`).join(' ')}
-         &nbsp;<a href="javascript:void(0)" onclick="quickAddHint('${parsed.unmatched[0]}')" style="color:#4e6ef2;font-size:11px;">去添加</a>
+         ⚠ 缺少词根：${parsed.unmatched.map(w=>`「${w}」<a href="javascript:void(0)" onclick="openSuggestWordModal('${w.replace(/'/g,'')}')" style="color:#4e6ef2;font-size:11px;font-weight:400;">建议缩写</a>`).join(' ')}
        </div>`
     : '';
 
@@ -1450,11 +1449,77 @@ function applySuggest() {
 // 快速打开新增词根表单（用搜索词预填中文名）
 function quickAddHint(hint) {
   document.getElementById('searchSuggest').style.display = 'none';
-  showAddForm();
-  document.getElementById('f-name').value = hint;
-  document.getElementById('f-code').focus();
-  // 滚动到左侧面板
-  document.querySelector('.panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  openSuggestWordModal(hint);
+}
+
+async function openSuggestWordModal(name) {
+  document.getElementById('swm-name').value = name;
+  document.getElementById('swm-en').value = '';
+  document.getElementById('swm-code').value = '';
+  document.getElementById('swm-desc').value = '';
+  document.getElementById('swm-en-loading').textContent = '翻译中...';
+  document.getElementById('suggestWordModal').style.display = 'flex';
+  setTimeout(() => document.getElementById('swm-code').focus(), 150);
+
+  try {
+    const res = await fetch(
+      `https://api.mymemory.translated.net/get?q=${encodeURIComponent(name)}&langpair=zh|en`
+    );
+    const data = await res.json();
+    const en = (data.responseData?.translatedText || '').toLowerCase().replace(/[^a-z\s]/g, '').trim();
+    document.getElementById('swm-en').value = en || '(翻译失败)';
+    document.getElementById('swm-en-loading').textContent = '';
+    if (en) {
+      const abbr = deriveAbbreviation(en);
+      document.getElementById('swm-code').value = abbr;
+      document.getElementById('swm-code').select();
+    }
+  } catch(e) {
+    document.getElementById('swm-en').value = '(网络错误)';
+    document.getElementById('swm-en-loading').textContent = '';
+  }
+}
+
+function deriveAbbreviation(en) {
+  const parts = en.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '';
+  // 多词取首字母缩写（gross merchandise value → gmv）
+  if (parts.length >= 2) return parts.map(w => w[0]).join('');
+  // 单词取前4位
+  return parts[0].substring(0, 4);
+}
+
+function closeSuggestWordModal() {
+  document.getElementById('suggestWordModal').style.display = 'none';
+}
+
+async function confirmAddSuggestedWord(autoPush) {
+  const code = document.getElementById('swm-code').value.trim().toLowerCase();
+  const name = document.getElementById('swm-name').value.trim();
+  const cat  = document.getElementById('swm-cat').value;
+  const desc = document.getElementById('swm-desc').value.trim();
+
+  if (!code) { alert('请输入词根 Code'); return; }
+  if (!/^[a-z][a-z0-9_]*$/.test(code)) {
+    alert('词根 Code 只能包含小写字母、数字和下划线，且以字母开头'); return;
+  }
+  if (words.some(w => w.code === code && w.name === name)) {
+    alert(`词根 "${code}"（${name}）已存在`); return;
+  }
+
+  words.push({ id: nextId++, code, name, cat, desc });
+  saveWords();
+  buildAutoKeywords();
+  renderWordList();
+  closeSuggestWordModal();
+
+  // 重新触发搜索，让结果即时刷新
+  const input = document.getElementById('searchInput');
+  if (input?.value) showSuggest(input.value);
+
+  if (autoPush) {
+    await syncPush();
+  }
 }
 
 function onSearchKey(e) {
@@ -1473,10 +1538,10 @@ function generateFromSearch() {
     el.innerHTML = `<div style="padding:10px 12px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:5px;">
         <span style="color:#ff4d4f;font-weight:600;">⚠ 缺少词根</span>
-        <span style="font-size:11px;color:#666;">「${parsed.unmatched.map(w=>`${w}`).join('、')}」暂无对应词根，无法生成</span>
+        <span style="font-size:11px;color:#666;">以下词汇暂无对应词根，无法生成</span>
       </div>
-      <div style="font-size:11px;color:#999;">
-        请在左侧<a href="javascript:void(0)" onclick="quickAddHint('${parsed.unmatched[0].replace(/'/g,'')}')" style="color:#4e6ef2;text-decoration:none;font-weight:600;">词根库中添加</a>后重试
+      <div style="font-size:11px;color:#666;line-height:2;">
+        ${parsed.unmatched.map(w=>`「${w}」<a href="javascript:void(0)" onclick="openSuggestWordModal('${w.replace(/'/g,'')}')" style="color:#4e6ef2;text-decoration:none;font-weight:600;">建议缩写</a>`).join('&nbsp;&nbsp;')}
       </div>
     </div>`;
     el.style.display = 'block';
@@ -1492,7 +1557,7 @@ function generateFromSearch() {
         <span style="font-size:11px;color:#666;">「${val}」中的词汇暂无对应词根</span>
       </div>
       <div style="font-size:11px;color:#999;">
-        请在左侧<a href="javascript:void(0)" onclick="quickAddHint('${val.replace(/'/g, '')}')" style="color:#4e6ef2;text-decoration:none;font-weight:600;">词根库中添加</a>相关词根后重试
+        <a href="javascript:void(0)" onclick="openSuggestWordModal('${val.replace(/'/g, '')}')" style="color:#4e6ef2;text-decoration:none;font-weight:600;">建议缩写</a>，快速添加到词根库
       </div>
     </div>`;
     el.style.display = 'block';
@@ -1516,8 +1581,7 @@ function batchGenerate() {
       return `<div class="batch-item" style="border-color:#ffccc7;background:#fff2f0;">
         <span style="font-size:12px;color:#666;">${line.trim()}</span>
         <span class="batch-arrow" style="color:#ff4d4f;">→</span>
-        <span style="color:#ff4d4f;font-size:12px;font-weight:600;">⚠ 缺少词根：${parsed.unmatched.map(w=>`「${w}」`).join(' ')}</span>
-        <a href="javascript:void(0)" onclick="quickAddHint('${parsed.unmatched[0].replace(/'/g,'')}')" style="color:#4e6ef2;font-size:11px;margin-left:4px;">去添加</a>
+        <span style="color:#ff4d4f;font-size:12px;font-weight:600;">⚠ 缺少词根：${parsed.unmatched.map(w=>`「${w}」<a href="javascript:void(0)" onclick="openSuggestWordModal('${w.replace(/'/g,'')}')" style="color:#4e6ef2;font-size:11px;font-weight:400;">建议缩写</a>`).join(' ')}</span>
       </div>`;
     }
     const code = buildCode(parsed);
@@ -1766,6 +1830,47 @@ setTimeout(() => { document.getElementById('searchInput').value = ''; }, 100);
 </script>
 
 <!-- GitHub 配置弹窗 -->
+<div class="modal-mask" id="suggestWordModal" style="display:none" onclick="if(event.target===this)closeSuggestWordModal()">
+  <div class="modal-box">
+    <div class="modal-title">💡 词根建议</div>
+    <div class="modal-sub">根据中文名称自动推导英文缩写，确认后加入词根库</div>
+    <div class="modal-field">
+      <label>中文名称</label>
+      <input id="swm-name" readonly style="background:#f5f5f5;color:#666;" />
+    </div>
+    <div class="modal-field">
+      <label>英文翻译参考 <span id="swm-en-loading" style="color:#aaa;font-size:11px;"></span></label>
+      <input id="swm-en" readonly style="background:#f5f5f5;color:#666;font-family:inherit;" />
+    </div>
+    <div class="modal-field">
+      <label>词根 Code（可修改）</label>
+      <input id="swm-code" placeholder="请输入小写英文缩写，如 gmv / trade / 7d" autocomplete="new-password" />
+      <div class="hint">小写字母 + 数字 + 下划线，建议 3~6 位</div>
+    </div>
+    <div class="modal-field">
+      <label>分类</label>
+      <select id="swm-cat" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;outline:none;">
+        <option value="base">基础指标词根</option>
+        <option value="metric">度量词根</option>
+        <option value="entity">实体词根</option>
+        <option value="process">业务过程词根</option>
+        <option value="gran">聚合粒度</option>
+        <option value="agg">聚合修饰词</option>
+        <option value="date">日期修饰词</option>
+      </select>
+    </div>
+    <div class="modal-field">
+      <label>描述（可选）</label>
+      <input id="swm-desc" placeholder="简短说明词根含义" autocomplete="new-password" />
+    </div>
+    <div class="modal-actions">
+      <button class="sync-btn" onclick="closeSuggestWordModal()">取消</button>
+      <button class="sync-btn" onclick="confirmAddSuggestedWord(false)">仅添加</button>
+      <button class="sync-btn primary" onclick="confirmAddSuggestedWord(true)">添加并推送</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-mask" id="configModal" style="display:none" onclick="if(event.target===this)closeConfigModal()">
   <div class="modal-box">
     <div class="modal-title">⚙ GitHub 词根库配置</div>
