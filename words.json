@@ -1010,7 +1010,7 @@
   {
     "id": 306,
     "code": "uv",
-    "name": "独立访客数",
+    "name": "独立访客数/uv",
     "cat": "base",
     "desc": "Unique Visitor"
   },
@@ -1038,7 +1038,7 @@
   {
     "id": 310,
     "code": "pv",
-    "name": "页面浏览量",
+    "name": "页面浏览量/pv",
     "cat": "base",
     "desc": "Page View"
   },
@@ -1171,8 +1171,8 @@
   {
     "id": 329,
     "code": "search",
-    "name": "搜索量",
-    "cat": "metric",
+    "name": "搜索",
+    "cat": "process",
     "desc": "搜索次数"
   },
   {
@@ -1214,7 +1214,7 @@
     "id": 335,
     "code": "result",
     "name": "结果",
-    "cat": "metric",
+    "cat": "process",
     "desc": "处理结果"
   },
   {
@@ -1494,6 +1494,13 @@
     "id": 506,
     "code": "imag",
     "name": "图文",
+    "cat": "entity",
+    "desc": ""
+  },
+  {
+    "id": 507,
+    "code": "page",
+    "name": "页",
     "cat": "entity",
     "desc": ""
   }
