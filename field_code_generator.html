@@ -690,7 +690,7 @@ function addHistory(entry) {
   const dupIdx = history.findIndex(h => h.code === entry.code);
   if (dupIdx >= 0) history.splice(dupIdx, 1);
   history.unshift(entry);
-  if (history.length > 50) history.length = 50;
+  if (history.length > 100) history.length = 100;
 }
 
 // ============================================================
@@ -1043,7 +1043,9 @@ function renderHistory() {
     el.innerHTML = '<div class="empty">暂无记录</div>';
     return;
   }
-  el.innerHTML = history.map((h, i) => `
+  const displayItems = history.slice(0, 10);
+  const hiddenCount = history.length - displayItems.length;
+  el.innerHTML = displayItems.map((h, i) => `
     <div class="history-item">
       <span class="history-code">${h.code}</span>
       <span class="history-name">${h.name}</span>
@@ -1051,7 +1053,7 @@ function renderHistory() {
       <button class="copy-btn" onclick="copyCode('${h.code}')">复制</button>
       <button class="btn btn-danger btn-sm" onclick="deleteHistory(${i})">×</button>
     </div>
-  `).join('');
+  `).join('') + (hiddenCount > 0 ? `<div class="empty" style="font-size:11px;padding:6px 0;">还有 ${hiddenCount} 条，可导出CSV查看</div>` : '');
 }
 
 function deleteHistory(i) {
