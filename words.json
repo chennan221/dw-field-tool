@@ -1503,5 +1503,19 @@
     "name": "海外",
     "cat": "process",
     "desc": ""
+  },
+  {
+    "id": 509,
+    "code": "eop",
+    "name": "期末",
+    "cat": "date",
+    "desc": "end of period"
+  },
+  {
+    "id": 510,
+    "code": "hsale",
+    "name": "高销",
+    "cat": "process",
+    "desc": "high sales"
   }
 ]
