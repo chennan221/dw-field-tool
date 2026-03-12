@@ -1094,7 +1094,7 @@
   {
     "id": 318,
     "code": "image",
-    "name": "图片(全称)",
+    "name": "图片/图",
     "cat": "metric",
     "desc": "图片相关"
   },
@@ -1487,7 +1487,14 @@
     "id": 505,
     "code": "ente",
     "name": "企业",
-    "cat": "base",
+    "cat": "process",
+    "desc": ""
+  },
+  {
+    "id": 506,
+    "code": "imag",
+    "name": "图文",
+    "cat": "entity",
     "desc": ""
   }
 ]
