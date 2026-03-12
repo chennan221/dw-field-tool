@@ -507,6 +507,7 @@ const DEFAULT_WORDS = [
   { id: 214, code: 'eod',      name: '日终(EOD)',     cat: 'date', desc: 'End Of Day，当日结束时快照' },
   { id: 210, code: '1m',       name: '近1个月',       cat: 'date', desc: '近1个自然月' },
   { id: 212, code: 'l1m',      name: '上1个月',       cat: 'date', desc: 'Last 1 Month，上月同期' },
+  { id: 238, code: 'lm',       name: '上月',          cat: 'date', desc: '上个自然月' },
   { id: 208, code: '1q',       name: '近1季度',       cat: 'date', desc: '近1个自然季度' },
   { id: 220, code: 'lwtd',     name: '上周同期',      cat: 'date', desc: 'Last Week To Date' },
   { id: 228, code: 'lmtd',     name: '上月同期',      cat: 'date', desc: 'Last Month To Date' },
@@ -1163,7 +1164,7 @@ const KEYWORD_MAP = {
   '本月': 'mtd',
   '本季度': 'qtd', '季度': 'qtd',
   '本年': 'ytd',
-  '上周': 'lwtd', '上月': 'lmtd', '上季度': 'lqtd',
+  '上周': 'lwtd', '上月': 'lm', '上季度': 'lqtd',
   '同比': 'yoy', '环比': 'mom',
   // 业务过程
   '交易': 'trade', '成交': 'trade',
@@ -1223,7 +1224,7 @@ const COMPOUND_KEYWORDS = {
 // 哪些关键词归属 biz（允许多个），哪些归属 agg/metric/date（单个）
 // 规则：先匹配 agg/metric/date，biz 收集所有剩余
 const AGG_CODES   = new Set(['avg','sum','max','min']);
-const DATE_CODES  = new Set(['td','1d','2d','3d','5d','7d','10d','14d','15d','20d','30d','45d','60d','90d','120d','180d','300d','365d','1m','l1m','1q','mtd','wtd','qtd','ytd','lwtd','lmtd','lqtd','yoy','mom','std','eod','datetime','date','day','hour']);
+const DATE_CODES  = new Set(['td','1d','2d','3d','5d','7d','10d','14d','15d','20d','30d','45d','60d','90d','120d','180d','300d','365d','1m','lm','l1m','1q','mtd','wtd','qtd','ytd','lwtd','lmtd','lqtd','yoy','mom','std','eod','datetime','date','day','hour']);
 const METRIC_CODES= new Set(['gmv','amt','price','fee','uv','pv','cr','flag','id','ids','type','level','name','title','url','img','image','video','size','limit','remain','list','tag','label','json','properties','property','detail','comment','reason','result','report','content','value','duration','capacity','style','no','num','quantity','info','status','stock','inv','qty','collect','click','search','access',
   'cnt','score','weight','rate','degree','diff','total','rank','index','top','ratio','pct',
   'ctr','exposure','favorite','range','time','days']);
