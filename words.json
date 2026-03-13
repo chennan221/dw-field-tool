@@ -1517,5 +1517,12 @@
     "name": "高销",
     "cat": "process",
     "desc": "high sales"
+  },
+  {
+    "id": 511,
+    "code": "million",
+    "name": "百万",
+    "cat": "base",
+    "desc": ""
   }
 ]
