@@ -1522,7 +1522,7 @@
     "id": 511,
     "code": "million",
     "name": "百万",
-    "cat": "base",
+    "cat": "process",
     "desc": ""
   }
 ]
