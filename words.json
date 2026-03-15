@@ -9,7 +9,7 @@
   {
     "id": 2,
     "code": "merc",
-    "name": "商家/卖家",
+    "name": "商家/卖家/商",
     "cat": "entity",
     "desc": "Merchant缩写"
   },
@@ -1529,6 +1529,20 @@
     "id": 512,
     "code": "break",
     "name": "破",
+    "cat": "process",
+    "desc": ""
+  },
+  {
+    "id": 513,
+    "code": "break10thousand",
+    "name": "破万",
+    "cat": "process",
+    "desc": ""
+  },
+  {
+    "id": 514,
+    "code": "break100thousand",
+    "name": "破十万",
     "cat": "process",
     "desc": ""
   }
