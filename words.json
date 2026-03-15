@@ -1535,14 +1535,14 @@
   {
     "id": 513,
     "code": "break10thousand",
-    "name": "破万",
+    "name": "破万/破w",
     "cat": "process",
     "desc": ""
   },
   {
     "id": 514,
     "code": "break100thousand",
-    "name": "破十万",
+    "name": "破十万/破10万/破10w",
     "cat": "process",
     "desc": ""
   },
