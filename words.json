@@ -1587,5 +1587,12 @@
     "name": "上月同期",
     "cat": "date",
     "desc": "Last Month To Date"
+  },
+  {
+    "id": 519,
+    "code": "comm",
+    "name": "评论",
+    "cat": "entity",
+    "desc": ""
   }
 ]
