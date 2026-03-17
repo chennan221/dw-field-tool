@@ -267,26 +267,26 @@
     </div>
 
     <!-- 词根类型说明 -->
-    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;">
-      <div style="background:#f0f5ff;border-radius:8px;padding:9px 11px;border-left:3px solid #4096ff;">
-        <div style="margin-bottom:5px;"><span class="tag tag-entity" style="padding:1px 9px;font-size:11px;">业务修饰词</span></div>
-        <div style="font-size:11px;color:#444;font-weight:500;">限定业务范围</div>
-        <div style="font-size:10px;color:#aaa;margin-top:3px;">new · active · valid · first</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:7px;margin-bottom:8px;">
+      <div style="background:#fff;border-radius:7px;padding:8px 11px;border:1px solid #eee;border-top:2px solid #4096ff;">
+        <div style="font-size:11px;font-weight:600;color:#0958d9;margin-bottom:3px;">业务修饰词</div>
+        <div style="font-size:11px;color:#555;">限定业务范围</div>
+        <div style="font-size:10px;color:#bbb;margin-top:3px;letter-spacing:0.3px;">new · active · valid · first</div>
       </div>
-      <div style="background:#e6fffb;border-radius:8px;padding:9px 11px;border-left:3px solid #13c2c2;">
-        <div style="margin-bottom:5px;"><span class="tag tag-base" style="padding:1px 9px;font-size:11px;">度量词根</span></div>
-        <div style="font-size:11px;color:#444;font-weight:500;">描述统计口径</div>
-        <div style="font-size:10px;color:#aaa;margin-top:3px;">cnt · amt · gmv · rate</div>
+      <div style="background:#fff;border-radius:7px;padding:8px 11px;border:1px solid #eee;border-top:2px solid #08979c;">
+        <div style="font-size:11px;font-weight:600;color:#006d75;margin-bottom:3px;">度量词根</div>
+        <div style="font-size:11px;color:#555;">描述统计口径</div>
+        <div style="font-size:10px;color:#bbb;margin-top:3px;letter-spacing:0.3px;">cnt · amt · gmv · rate</div>
       </div>
-      <div style="background:#fff0f6;border-radius:8px;padding:9px 11px;border-left:3px solid #eb2f96;">
-        <div style="margin-bottom:5px;"><span class="tag tag-agg" style="padding:1px 9px;font-size:11px;">聚合修饰词</span></div>
-        <div style="font-size:11px;color:#444;font-weight:500;">描述聚合计算方式</div>
-        <div style="font-size:10px;color:#aaa;margin-top:3px;">sum · avg · max · min</div>
+      <div style="background:#fff;border-radius:7px;padding:8px 11px;border:1px solid #eee;border-top:2px solid #c41d7f;">
+        <div style="font-size:11px;font-weight:600;color:#c41d7f;margin-bottom:3px;">聚合修饰词</div>
+        <div style="font-size:11px;color:#555;">描述聚合计算方式</div>
+        <div style="font-size:10px;color:#bbb;margin-top:3px;letter-spacing:0.3px;">sum · avg · max · min</div>
       </div>
-      <div style="background:#f6ffed;border-radius:8px;padding:9px 11px;border-left:3px solid #52c41a;">
-        <div style="margin-bottom:5px;"><span class="tag tag-date" style="padding:1px 9px;font-size:11px;">日期修饰词</span></div>
-        <div style="font-size:11px;color:#444;font-weight:500;">描述统计时间窗口</div>
-        <div style="font-size:10px;color:#aaa;margin-top:3px;">1d · 7d · 30d · td · mtd</div>
+      <div style="background:#fff;border-radius:7px;padding:8px 11px;border:1px solid #eee;border-top:2px solid #389e0d;">
+        <div style="font-size:11px;font-weight:600;color:#389e0d;margin-bottom:3px;">日期修饰词</div>
+        <div style="font-size:11px;color:#555;">描述统计时间窗口</div>
+        <div style="font-size:10px;color:#bbb;margin-top:3px;letter-spacing:0.3px;">1d · 7d · 30d · td · mtd</div>
       </div>
     </div>
 
@@ -295,12 +295,19 @@
       <div class="composer-header">
         <div>
           <span class="panel-title">命名组合器</span>
-          <span style="font-size:11px;color:#999;margin-left:8px;">点击词根槽位选择/切换，构建字段 code</span>
+          <span style="font-size:11px;color:#999;margin-left:8px;">输入中文名称自动填充，或手动点击槽位选择</span>
         </div>
         <div style="display:flex;gap:6px;">
           <button class="btn btn-ghost btn-sm" onclick="clearComposer()">清空</button>
           <button class="btn btn-primary btn-sm" onclick="saveToHistory()">保存记录</button>
         </div>
+      </div>
+      <div style="padding:8px 12px;border-bottom:1px solid #f0f0f0;display:flex;gap:6px;">
+        <input id="composerInput" autocomplete="new-password" placeholder="输入中文名称自动填充槽位，如：近7天净GMV均值"
+          style="flex:1;padding:5px 10px;border:1px solid #ddd;border-radius:6px;font-size:12px;outline:none;color:#333;"
+          onfocus="this.style.borderColor='#4e6ef2'" onblur="this.style.borderColor='#ddd'"
+          onkeydown="if(event.key==='Enter')fillComposerFromInput()" />
+        <button class="btn btn-ghost btn-sm" onclick="fillComposerFromInput()">解析填充</button>
       </div>
       <div class="composer-body">
 
@@ -1479,6 +1486,24 @@ function applySuggest() {
   addHistory(entry);
   saveHistoryStore();
   renderHistory();
+}
+
+function fillComposerFromInput() {
+  const inp = document.getElementById('composerInput');
+  const val = inp.value.trim();
+  if (!val) return;
+  const parsed = smartParse(val);
+  if ((parsed.unmatched||[]).length > 0 || !buildCode(parsed)) {
+    inp.style.borderColor = '#ff4d4f';
+    setTimeout(() => { inp.style.borderColor = '#ddd'; }, 1500);
+    return;
+  }
+  slots = { biz: [...(parsed.biz||[])], metric: parsed.metric, gran: parsed.gran, agg: parsed.agg, date: parsed.date };
+  updateSlotUI('biz');
+  ['metric','gran','agg','date'].forEach(updateSlotUI);
+  updateResult();
+  inp.style.borderColor = '#52c41a';
+  setTimeout(() => { inp.style.borderColor = '#ddd'; }, 1500);
 }
 
 // 快速打开新增词根表单（用搜索词预填中文名）
