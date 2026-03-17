@@ -598,19 +598,16 @@ const DEFAULT_WORDS = [
 ];
 
 const CAT_CONFIG = {
-  entity:  { label: '修饰词根',     tagCls: 'tag-entity',  color: '#0958d9' },
-  process: { label: '业务过程词根', tagCls: 'tag-process', color: '#531dab' },
-  base:    { label: '基础指标词根', tagCls: 'tag-base',    color: '#006d75' },
-  metric:  { label: '度量词根',     tagCls: 'tag-metric',  color: '#d46b08' },
-  gran:    { label: '聚合粒度',     tagCls: 'tag-gran',    color: '#874d00' },
-  agg:     { label: '聚合修饰词',   tagCls: 'tag-agg',     color: '#c41d7f' },
-  date:    { label: '日期修饰词',   tagCls: 'tag-date',    color: '#389e0d' },
+  biz:    { label: '业务修饰词',   tagCls: 'tag-entity',  color: '#0958d9' },
+  metric: { label: '度量词根',     tagCls: 'tag-base',    color: '#006d75' },
+  gran:   { label: '聚合粒度',     tagCls: 'tag-gran',    color: '#874d00' },
+  agg:    { label: '聚合修饰词',   tagCls: 'tag-agg',     color: '#c41d7f' },
+  date:   { label: '日期修饰词',   tagCls: 'tag-date',    color: '#389e0d' },
 };
 
-// biz 槽位同时接受 entity 和 process 两类词根；metric 槽位同时接受 base 和 metric
 const SLOT_TO_CATS = {
-  biz:    ['entity', 'process'],
-  metric: ['base', 'metric'],
+  biz:    ['biz'],
+  metric: ['metric'],
   gran:   ['gran'],
   agg:    ['agg'],
   date:   ['date'],
@@ -699,7 +696,7 @@ function addHistory(entry) {
 function renderWordList() {
   const container = document.getElementById('wordList');
   const q = (document.getElementById('wordSearch')?.value || '').toLowerCase().trim();
-  const cats = ['entity', 'process', 'base', 'metric', 'gran', 'agg', 'date'];
+  const cats = ['biz', 'metric', 'gran', 'agg', 'date'];
   container.innerHTML = cats.map(cat => {
     let catWords = words.filter(w => w.cat === cat);
     if (q) catWords = catWords.filter(w =>
@@ -773,7 +770,7 @@ function editWord(id) {
   const w = words.find(x => x.id === id);
   if (!w) return;
   const el = document.getElementById(`witem-${id}`);
-  const catOptions = ['entity','process','base','metric','gran','agg','date']
+  const catOptions = ['biz','metric','gran','agg','date']
     .map(c => `<option value="${c}" ${w.cat === c ? 'selected' : ''}>${CAT_CONFIG[c].label}</option>`)
     .join('');
   el.innerHTML = `
@@ -861,7 +858,7 @@ function buildAutoKeywords() {
     'datetime','date','day','hour' // 通用时间关键词保底
   ]);
   METRIC_CODES = new Set([
-    ...words.filter(w => w.cat === 'metric' || w.cat === 'base').map(w => w.code),
+    ...words.filter(w => w.cat === 'metric').map(w => w.code),
     'flag','id','ids','type','level','name','title','url','img','image','video',
     'size','limit','remain','list','tag','label','json','properties','property',
     'detail','comment','reason','result','report','content','duration','capacity',
@@ -1003,7 +1000,7 @@ function updateResult() {
     return;
   }
   // 判断基础指标 vs 派生指标
-  const hasBase = slots.metric && slots.metric.cat === 'base';
+  const hasBase = slots.metric && slots.metric.cat === 'metric';
   const indicatorTag = hasBase
     ? (slots.biz.length <= 1
         ? `<span style="background:#e6fffb;color:#006d75;border:1px solid #87e8de;border-radius:10px;padding:0px 7px;font-size:10px;font-weight:600;">基础指标</span>`
@@ -1277,13 +1274,13 @@ function smartParse(text) {
     // 复合关键词：同时填入 biz + metric
     if (COMPOUND_KEYWORDS[kw]) {
       const comp = COMPOUND_KEYWORDS[kw];
-      const bizW = words.find(x => x.code === comp.biz && (x.cat === 'entity' || x.cat === 'process'));
+      const bizW = words.find(x => x.code === comp.biz && x.cat === 'biz');
       if (bizW && !result.biz.some(b => b.id === bizW.id)) {
         result.biz.push(bizW);
         bizPos.set(bizW.id, pos);
       }
       if (!result.metric) {
-        const metricW = words.find(x => x.code === comp.metric && (x.cat === 'base' || x.cat === 'metric'));
+        const metricW = words.find(x => x.code === comp.metric && x.cat === 'metric');
         if (metricW) result.metric = metricW;
       }
       continue;
@@ -1312,7 +1309,7 @@ function smartParse(text) {
     }
     if (METRIC_CODES.has(code)) {
       if (!result.metric) {
-        const w = words.find(x => x.code === code && (x.cat === 'base' || x.cat === 'metric'));
+        const w = words.find(x => x.code === code && x.cat === 'metric');
         if (w) { result.metric = w; continue; }
       } else { continue; } // 指标槽已满，跳过，不降级到 biz
     }
@@ -1327,7 +1324,7 @@ function smartParse(text) {
         const w = words.find(x => x.code === code && x.cat === 'agg');
         if (w) { result.agg = w; continue; }
       } else {
-        const bizW = words.find(x => x.code === code && x.cat === 'process');
+        const bizW = words.find(x => x.code === code && x.cat === 'biz');
         if (bizW && !result.biz.some(b => b.id === bizW.id)) {
           result.biz.push(bizW);
           bizPos.set(bizW.id, pos);
@@ -1335,8 +1332,8 @@ function smartParse(text) {
         continue;
       }
     }
-    // 默认归 biz（优先找 entity/process，回退找任意）
-    const bizW = words.find(x => x.code === code && (x.cat === 'entity' || x.cat === 'process'))
+    // 默认归 biz（优先找 biz，回退找任意）
+    const bizW = words.find(x => x.code === code && x.cat === 'biz')
                || words.find(x => x.code === code);
     if (bizW && !result.biz.some(b => b.id === bizW.id)) {
       result.biz.push(bizW);
@@ -1421,7 +1418,7 @@ function showSuggest(text) {
 
   // 判断基础指标 vs 派生指标
   const bizCount = (parsed.biz||[]).length;
-  const hasBase = parsed.metric && (parsed.metric.cat === 'base');
+  const hasBase = parsed.metric && (parsed.metric.cat === 'metric');
   let indicatorType = '';
   if (hasBase && !unmatchedWarn) {
     indicatorType = bizCount <= 1
