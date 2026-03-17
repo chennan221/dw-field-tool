@@ -221,7 +221,7 @@
         </div>
         <div class="form-row">
           <select id="f-cat">
-            <option value="entity">实体词根</option>
+            <option value="entity">修饰词根</option>
             <option value="process">业务过程词根</option>
             <option value="base">基础指标词根</option>
             <option value="metric">度量词根</option>
@@ -598,7 +598,7 @@ const DEFAULT_WORDS = [
 ];
 
 const CAT_CONFIG = {
-  entity:  { label: '实体词根',     tagCls: 'tag-entity',  color: '#0958d9' },
+  entity:  { label: '修饰词根',     tagCls: 'tag-entity',  color: '#0958d9' },
   process: { label: '业务过程词根', tagCls: 'tag-process', color: '#531dab' },
   base:    { label: '基础指标词根', tagCls: 'tag-base',    color: '#006d75' },
   metric:  { label: '度量词根',     tagCls: 'tag-metric',  color: '#d46b08' },
@@ -1432,7 +1432,6 @@ function showSuggest(text) {
         <span class="suggest-code" style="${unmatchedWarn ? 'color:#ff4d4f;text-decoration:line-through;opacity:0.5;' : ''}">${code || '—'}</span>
         ${indicatorType}
       </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap;">${parts.join('')}</div>
       ${name ? `<span class="suggest-name">${name}</span>` : ''}
       ${unmatchedWarn}
     </div>
@@ -1862,7 +1861,7 @@ setTimeout(() => { document.getElementById('searchInput').value = ''; }, 100);
     <div class="modal-field">
       <label>分类</label>
       <select id="swm-cat" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;outline:none;">
-        <option value="entity">实体词根</option>
+        <option value="entity">修饰词根</option>
         <option value="process">业务过程词根</option>
         <option value="base">基础指标词根</option>
         <option value="metric">度量词根</option>
