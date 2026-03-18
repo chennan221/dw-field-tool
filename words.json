@@ -941,7 +941,7 @@
     "id": 224,
     "code": "date",
     "name": "日期",
-    "cat": "date",
+    "cat": "biz",
     "desc": "日期字段后缀，如 audit_date"
   },
   {
@@ -961,8 +961,8 @@
   {
     "id": 209,
     "code": "datetime",
-    "name": "日期时间",
-    "cat": "date",
+    "name": "日期时间/时间",
+    "cat": "biz",
     "desc": "精确到时分秒的时间戳字段"
   },
   {
@@ -1592,6 +1592,27 @@
     "id": 519,
     "code": "comm",
     "name": "评论",
+    "cat": "entity",
+    "desc": ""
+  },
+  {
+    "id": 520,
+    "code": "一级",
+    "name": "lv1",
+    "cat": "gran",
+    "desc": ""
+  },
+  {
+    "id": 521,
+    "code": "类目",
+    "name": "category",
+    "cat": "gran",
+    "desc": ""
+  },
+  {
+    "id": 522,
+    "code": "sold",
+    "name": "卖",
     "cat": "entity",
     "desc": ""
   }
