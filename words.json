@@ -961,7 +961,7 @@
   {
     "id": 209,
     "code": "datetime",
-    "name": "日期时间/时间",
+    "name": "时间",
     "cat": "biz",
     "desc": "精确到时分秒的时间戳字段"
   },
@@ -1433,13 +1433,6 @@
     "name": "区间/范围",
     "cat": "biz",
     "desc": "价格区间等范围类字段，如 price_range"
-  },
-  {
-    "id": 369,
-    "code": "time",
-    "name": "时间戳",
-    "cat": "biz",
-    "desc": "时间类字段，如 create_time、update_time"
   },
   {
     "id": 500,
