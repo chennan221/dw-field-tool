@@ -349,9 +349,9 @@
             </div>
             <div class="slot-sep">_</div>
             <div class="slot">
-              <div class="slot-label">聚合粒度 <span class="badge badge-opt">可选</span></div>
-              <div class="slot-box optional" id="slot-gran" onclick="openSelector('gran')">
-                <span id="slot-gran-text">点击选择</span>
+              <div class="slot-label">聚合粒度 <span class="badge badge-opt">可选</span> <span style="font-size:10px;color:#aaa;font-weight:400">可多选</span></div>
+              <div class="slot-box optional" id="slot-gran" onclick="openSelector('gran')" style="flex-wrap:wrap;gap:3px;min-height:36px;height:auto;align-items:flex-start;padding:5px 8px;">
+                <span id="slot-gran-text" style="color:#bbb;font-size:12px;">点击选择</span>
               </div>
             </div>
             <div class="slot-sep">_</div>
@@ -654,7 +654,7 @@ const SLOT_TO_CATS = {
 // ============================================================
 let words = [];
 let autoKeywords = {}; // 从词根中文名自动推导出的关键词映射，KEYWORD_MAP 优先级更高
-let slots = { biz: [], metric: null, gran: null, agg: null, date: null };  // biz 支持多选
+let slots = { biz: [], gran: [], metric: null, agg: null, date: null };  // biz/gran 支持多选
 let history = [];
 let currentSelectorCat = null;
 let nextId = 500;
@@ -926,7 +926,7 @@ function closeSelector() {
 
 function clearCurrentSlot() {
   if (currentSelectorCat) {
-    if (currentSelectorCat === 'biz') slots.biz = [];
+    if (currentSelectorCat === 'biz' || currentSelectorCat === 'gran') slots[currentSelectorCat] = [];
     else slots[currentSelectorCat] = null;
     updateSlotUI(currentSelectorCat);
     updateResult();
@@ -944,8 +944,8 @@ function filterSelector() {
   const tagsHtml = catWords.map(w => {
     const cfg = CAT_CONFIG[w.cat];
     let sel = '';
-    if (slot === 'biz') {
-      sel = slots.biz.some(b => b.id === w.id) ? 'selected' : '';
+    if (slot === 'biz' || slot === 'gran') {
+      sel = slots[slot].some(b => b.id === w.id) ? 'selected' : '';
     } else {
       sel = slots[slot] && slots[slot].id === w.id ? 'selected' : '';
     }
@@ -959,14 +959,13 @@ function filterSelector() {
 function selectWord(cat, id) {
   const word = words.find(w => w.id === id);
   if (!word) return;
-  if (cat === 'biz') {
-    // 已选则取消，未选则追加
-    const idx = slots.biz.findIndex(b => b.id === id);
-    if (idx >= 0) slots.biz.splice(idx, 1);
-    else slots.biz.push(word);
-    updateSlotUI('biz');
+  if (cat === 'biz' || cat === 'gran') {
+    const idx = slots[cat].findIndex(b => b.id === id);
+    if (idx >= 0) slots[cat].splice(idx, 1);
+    else slots[cat].push(word);
+    updateSlotUI(cat);
     updateResult();
-    filterSelector(); // 刷新高亮
+    filterSelector();
   } else {
     slots[cat] = word;
     updateSlotUI(cat);
@@ -976,25 +975,26 @@ function selectWord(cat, id) {
 }
 
 function updateSlotUI(cat) {
-  if (cat === 'biz') {
-    const box = document.getElementById('slot-biz');
-    const txt = document.getElementById('slot-biz-text');
-    if (slots.biz.length === 0) {
+  if (cat === 'biz' || cat === 'gran') {
+    const chipCls = cat === 'biz' ? 'biz-chip' : 'gran-chip';
+    const chipColor = cat === 'biz' ? '#1677ff' : '#874d00';
+    const removeFn = cat === 'biz' ? 'removeBizChip' : 'removeGranChip';
+    const box = document.getElementById(`slot-${cat}`);
+    const txt = document.getElementById(`slot-${cat}-text`);
+    if (slots[cat].length === 0) {
       box.classList.remove('filled');
       txt.style.display = 'inline';
       txt.textContent = '点击选择';
-      // 清除旧 tag 徽章
-      box.querySelectorAll('.biz-chip').forEach(el => el.remove());
+      box.querySelectorAll(`.${chipCls}`).forEach(el => el.remove());
     } else {
       box.classList.add('filled');
       txt.style.display = 'none';
-      // 重绘 chip
-      box.querySelectorAll('.biz-chip').forEach(el => el.remove());
-      slots.biz.forEach(w => {
+      box.querySelectorAll(`.${chipCls}`).forEach(el => el.remove());
+      slots[cat].forEach(w => {
         const chip = document.createElement('span');
-        chip.className = 'biz-chip';
-        chip.style.cssText = 'display:inline-flex;align-items:center;gap:2px;background:#1677ff;color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:600;cursor:default;';
-        chip.innerHTML = `${w.code}<span onclick="removeBizChip(event,${w.id})" style="margin-left:2px;cursor:pointer;opacity:0.8;">×</span>`;
+        chip.className = chipCls;
+        chip.style.cssText = `display:inline-flex;align-items:center;gap:2px;background:${chipColor};color:#fff;border-radius:3px;padding:1px 5px;font-size:11px;font-weight:600;cursor:default;`;
+        chip.innerHTML = `${w.code}<span onclick="${removeFn}(event,${w.id})" style="margin-left:2px;cursor:pointer;opacity:0.8;">×</span>`;
         box.appendChild(chip);
       });
     }
@@ -1020,12 +1020,20 @@ function removeBizChip(e, id) {
   if (currentSelectorCat === 'biz') filterSelector();
 }
 
+function removeGranChip(e, id) {
+  e.stopPropagation();
+  slots.gran = slots.gran.filter(b => b.id !== id);
+  updateSlotUI('gran');
+  updateResult();
+  if (currentSelectorCat === 'gran') filterSelector();
+}
+
 function updateResult() {
   const parts = [];
   const names = [];
   slots.biz.forEach(w => { parts.push(w.code); names.push(cn(w.name)); });
   if (slots.metric) { parts.push(slots.metric.code); names.push(cn(slots.metric.name)); }
-  if (slots.gran)   { parts.push(slots.gran.code);   names.push(cn(slots.gran.name)); }
+  slots.gran.forEach(w => { parts.push(w.code); names.push(cn(w.name)); });
   if (slots.agg)    { parts.push(slots.agg.code);    names.push(cn(slots.agg.name)); }
   if (slots.date)   { parts.push(slots.date.code);   names.push(cn(slots.date.name)); }
 
@@ -1049,9 +1057,9 @@ function updateResult() {
 }
 
 function clearComposer() {
-  slots = { agg: null, biz: [], metric: null, date: null };
+  slots = { biz: [], gran: [], metric: null, agg: null, date: null };
   updateSlotUI('biz');
-  ['agg','metric','date'].forEach(updateSlotUI);
+  ['gran','agg','metric','date'].forEach(updateSlotUI);
   updateResult();
   closeSelector();
 }
@@ -1061,6 +1069,7 @@ function saveToHistory() {
   const names = [];
   slots.biz.forEach(w => { parts.push(w.code); names.push(cn(w.name)); });
   if (slots.metric) { parts.push(slots.metric.code); names.push(cn(slots.metric.name)); }
+  slots.gran.forEach(w => { parts.push(w.code); names.push(cn(w.name)); });
   if (slots.agg)    { parts.push(slots.agg.code);    names.push(cn(slots.agg.name)); }
   if (slots.date)   { parts.push(slots.date.code);   names.push(cn(slots.date.name)); }
 
@@ -1483,7 +1492,7 @@ function applySuggest() {
   const el = document.getElementById('searchSuggest');
   if (!el._parsed) return;
   const parsed = el._parsed;
-  slots = { biz: [...(parsed.biz||[])], metric: parsed.metric, gran: parsed.gran, agg: parsed.agg, date: parsed.date };
+  slots = { biz: [...(parsed.biz||[])], metric: parsed.metric, gran: parsed.gran ? [parsed.gran] : [], agg: parsed.agg, date: parsed.date };
   updateSlotUI('biz');
   ['metric','gran','agg','date'].forEach(updateSlotUI);
   updateResult();
@@ -1553,7 +1562,7 @@ function applyComposerSuggest() {
 }
 
 function _applyComposerParsed(parsed, inputText) {
-  slots = { biz:[...(parsed.biz||[])], metric:parsed.metric, gran:parsed.gran, agg:parsed.agg, date:parsed.date };
+  slots = { biz:[...(parsed.biz||[])], metric:parsed.metric, gran: parsed.gran ? [parsed.gran] : [], agg:parsed.agg, date:parsed.date };
   updateSlotUI('biz');
   ['metric','gran','agg','date'].forEach(updateSlotUI);
   updateResult();
