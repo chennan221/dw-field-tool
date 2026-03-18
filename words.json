@@ -1615,5 +1615,12 @@
     "name": "时间戳",
     "cat": "date",
     "desc": "时间类字段，如 create_time、update_time"
+  },
+  {
+    "id": 523,
+    "code": "visi",
+    "name": "访问",
+    "cat": "biz",
+    "desc": ""
   }
 ]
