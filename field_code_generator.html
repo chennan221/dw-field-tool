@@ -1922,9 +1922,8 @@ function mergeRemoteWords(remoteWords) {
   buildAutoKeywords();
   renderWordList();
   updateResult();
+  initTypeExamples();
 }
-
-// 推送本地词根库到 GitHub
 async function syncPush(isInit = false) {
   if (!ghConfig) { openConfigModal(); return; }
   setSyncState('loading', '推送中...');
