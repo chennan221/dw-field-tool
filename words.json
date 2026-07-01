@@ -1622,5 +1622,12 @@
     "name": "季节",
     "cat": "biz",
     "desc": ""
+  },
+  {
+    "id": 525,
+    "code": "expand",
+    "name": "拓供",
+    "cat": "biz",
+    "desc": ""
   }
 ]
