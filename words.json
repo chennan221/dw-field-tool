@@ -1657,5 +1657,12 @@
     "name": "供给",
     "cat": "biz",
     "desc": ""
+  },
+  {
+    "id": 530,
+    "code": "out_stock",
+    "name": "缺货",
+    "cat": "biz",
+    "desc": ""
   }
 ]
