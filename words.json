@@ -1664,5 +1664,12 @@
     "name": "缺货",
     "cat": "biz",
     "desc": ""
+  },
+  {
+    "id": 531,
+    "code": "monitor",
+    "name": "监控",
+    "cat": "biz",
+    "desc": ""
   }
 ]
