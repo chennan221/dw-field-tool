@@ -1650,5 +1650,12 @@
     "name": "核心",
     "cat": "biz",
     "desc": ""
+  },
+  {
+    "id": 529,
+    "code": "supply",
+    "name": "供给",
+    "cat": "biz",
+    "desc": ""
   }
 ]
