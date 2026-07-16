@@ -1671,5 +1671,12 @@
     "name": "监控",
     "cat": "biz",
     "desc": ""
+  },
+  {
+    "id": 532,
+    "code": "comp",
+    "name": "比价",
+    "cat": "biz",
+    "desc": ""
   }
 ]
