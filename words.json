@@ -1643,5 +1643,12 @@
     "name": "一商",
     "cat": "biz",
     "desc": ""
+  },
+  {
+    "id": 528,
+    "code": "core",
+    "name": "核心",
+    "cat": "biz",
+    "desc": ""
   }
 ]
